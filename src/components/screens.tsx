@@ -6,6 +6,7 @@ import {
   activityTypes,
   billItems,
   passportStamps,
+  type SharedPhoto,
   tripDays,
   friends,
   initialMembers,
@@ -23,12 +24,18 @@ import { CurrentTripCard } from "./TripSheet"
 import { StampArt } from "./Passport"
 import { IconChevron, IconList, IconPlus, IconSearch, IconShare } from "./icons"
 
-function tripShots(ids: string[], covers: Record<string, string>) {
+function tripShots(ids: string[], covers: Record<string, string>, shared: SharedPhoto[]) {
   const stamps = ids.flatMap((id) => passportStamps.filter((item) => item.id === id))
-  const shots = stamps.map((stamp) => ({ stamp, photo: covers[stamp.id] ?? stamp.image }))
-  for (const stamp of stamps) {
-    for (const photo of stamp.photos) if (!shots.some((item) => item.photo === photo)) shots.push({ stamp, photo })
+  const shots: { stamp: (typeof stamps)[number]; photo: string }[] = []
+  const push = (stamp: (typeof stamps)[number], photo: string) => {
+    if (!shots.some((item) => item.photo === photo)) shots.push({ stamp, photo })
   }
+  for (const stamp of stamps) push(stamp, covers[stamp.id] ?? stamp.image)
+  for (const item of shared) {
+    const stamp = stamps.find((entry) => entry.id === item.stampId)
+    if (stamp && item.src !== stamp.image && !stamp.photos.includes(item.src)) push(stamp, item.src)
+  }
+  for (const stamp of stamps) for (const photo of stamp.photos) push(stamp, photo)
   return shots.slice(0, 3)
 }
 
@@ -95,7 +102,7 @@ export function TripList() {
               </div>
               {trip.stampIds.length > 0 && (
                 <span className="stamp-row" aria-hidden="true">
-                  {tripShots(trip.stampIds, state.stampCovers).map(({ stamp, photo }, index) => (
+                  {tripShots(trip.stampIds, state.stampCovers, state.photos).map(({ stamp, photo }, index) => (
                     <StampArt key={photo} stamp={stamp} photo={photo} style={{ transform: `rotate(${[-8, 4, -3, 7][index % 4]}deg)` }} />
                   ))}
                 </span>

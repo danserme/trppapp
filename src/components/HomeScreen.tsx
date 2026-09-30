@@ -1,4 +1,4 @@
-import type { CSSProperties, MouseEvent } from "react"
+import type { CSSProperties } from "react"
 import { days } from "../data"
 import { useStore } from "../state"
 import { DaySegments, StatusBar } from "./chrome"
@@ -35,12 +35,16 @@ function AppIcon() {
   )
 }
 
+function markLaunch(node: HTMLElement) {
+  const box = node.getBoundingClientRect()
+  document.documentElement.style.setProperty("--launch-x", `${box.left + box.width / 2}px`)
+  document.documentElement.style.setProperty("--launch-y", `${box.top + box.height / 2}px`)
+}
+
 export function HomeScreen() {
   const { dispatch } = useStore()
-  const launch = (target: "trip" | "map") => (event: MouseEvent<HTMLButtonElement>) => {
-    const box = event.currentTarget.getBoundingClientRect()
-    document.documentElement.style.setProperty("--launch-x", `${box.left + box.width / 2}px`)
-    document.documentElement.style.setProperty("--launch-y", `${box.top + box.height / 2}px`)
+  const launch = (target: "trip" | "map") => (event: { currentTarget: HTMLElement }) => {
+    markLaunch(event.currentTarget)
     dispatch({ type: "launch", target })
   }
   return (
@@ -78,9 +82,7 @@ export function HomeScreen() {
         <button type="button" className="widget widget-map" onClick={launch("map")} aria-label="Open trip map">
           <span className="widget-card">
             <img className="widget-map-bg" src="/assets/home/widget-map.png" alt="" />
-            <img className="widget-map-shot" src="/assets/home/widget-shot.png" alt="" />
-            <img className="widget-map-route" src="/assets/home/widget-route.svg" alt="" />
-            <span className="widget-map-panel">
+            <img className="widget-map-shot" src="/assets/home/widget-shot.png" alt="" />            <span className="widget-map-panel">
               <span>
                 <b>Day 2/4</b>
                 <em>3 stops left</em>

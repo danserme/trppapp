@@ -11,8 +11,12 @@ import {
   futureStops,
   isPastTrip,
   mapStops,
+  inYear,
   passportArcs,
   passportStamps,
+  stampYear,
+  tripYear,
+  trips,
   type DayId,
   type TripId,
 } from "../data"
@@ -24,10 +28,12 @@ maplibregl.setWorkerUrl(workerUrl)
 export type MapFocus = "trip" | "now" | "globe" | `away:${string}` | `stamp:${string}` | DayId
 export type MapHighlight = { trip: TripId; day: DayId } | null
 
+type Year = number | "all"
+
 type Props = {
   palette: Palette
   locateTick: number
-  showRoute: boolean
+  year: Year
   sheetTop: number
   focus: MapFocus
   highlight: MapHighlight
@@ -35,6 +41,9 @@ type Props = {
   onStamp: (id: string) => void
   onTripsInView: (count: number) => void
 }
+
+const tripsIn = (year: number) => trips.filter((trip) => tripYear(trip) === year).map((trip) => trip.id)
+const stampsIn = (year: Year) => passportStamps.filter((stamp) => inYear(stampYear(stamp), year))
 
 const ROUTE_LAYERS = ["path-glow", "path-future", "path-past", "path-dots"]
 const PASSPORT_LAYERS = ["passport-arcs", "passport-dots"]
@@ -113,10 +122,16 @@ const pathDots = [
   ...futureStops.map((stop) => dot("lisbon", stop.day, true, stop.coord)),
   ...awayEntries.flatMap(([trip, plans]) => plans.flatMap((plan) => plan.stops.map((coord) => dot(trip, plan.day, !isPastTrip(trip), coord)))),
 ]
+const tripIds = ["lisbon", ...awayEntries.map(([trip]) => trip)]
 const tripPoints: Point[][] = [
   [currentPoint, ...days.flatMap((day) => dayRoute(day.id).flatMap((leg) => leg.coords))],
   ...awayEntries.map(([, plans]) => plans.flatMap((plan) => plan.path)),
 ]
+function coordsForYear(year: number) {
+  const ids = new Set(tripsIn(year))
+  if (year === 2026) ids.delete("tokyo")
+  return tripPoints.filter((_, index) => ids.has(tripIds[index])).flat()
+}
 const FUTURE = "#0e1a36"
 const PAST = "#2b59f0"
 const key = ([lng, lat]: [number, number]) => `${lng},${lat}`
@@ -134,11 +149,18 @@ function fit(coords: [number, number][], width: number, height: number, maxZoom:
   }
 }
 
-function frame(map: maplibregl.Map, sheetTop: number, focus: MapFocus, highlight: MapHighlight) {
+function frame(map: maplibregl.Map, sheetTop: number, focus: MapFocus, highlight: MapHighlight, year: Year) {
   const width = map.getContainer().clientWidth
   const height = map.getContainer().clientHeight
   if (focus === "globe") {
-    map.flyTo({ center: [2, 47], zoom: 1.35, padding: { top: 56, bottom: height - 340, left: 0, right: 0 }, duration: 1600, essential: true })
+    const padding = { top: 56, bottom: height - 340, left: 0, right: 0 }
+    const stamps = stampsIn(year)
+    if (year === "all" || stamps.length === 0) {
+      map.flyTo({ center: [2, 47], zoom: 1.35, padding, duration: 1600, essential: true })
+      return
+    }
+    const camera = fit(stamps.map((stamp) => stamp.coord), width - 96, 340 - 56 - 60, 5.5)
+    map.flyTo({ ...camera, padding, duration: 1400, essential: true })
     return
   }
   if (focus.startsWith("stamp:")) {
@@ -153,7 +175,11 @@ function frame(map: maplibregl.Map, sheetTop: number, focus: MapFocus, highlight
   if (height - top - bottom < 100) return
   const padding = { top, bottom, left: 36, right: 36 }
   let camera: { center: maplibregl.LngLatLike; zoom: number }
-  if (isAway(focus)) {
+  if (focus === "trip" && year !== "all") {
+    const coords = coordsForYear(year)
+    if (!coords.length) return
+    camera = fit(coords, width - 72, height - top - bottom, 12)
+  } else if (isAway(focus)) {
     const plans = awayPlans[awayTrip(focus)]
     if (!plans) return
     const picked = plans.find((plan) => plan.day === highlight?.day)
@@ -169,17 +195,17 @@ function frame(map: maplibregl.Map, sheetTop: number, focus: MapFocus, highlight
   else map.easeTo({ ...camera, padding, duration: 700 })
 }
 
-export function MapView({ palette, locateTick, showRoute, sheetTop, focus, highlight, onInteract, onStamp, onTripsInView }: Props) {
+export function MapView({ palette, locateTick, year, sheetTop, focus, highlight, onInteract, onStamp, onTripsInView }: Props) {
   const node = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markerRefs = useRef<HTMLElement[]>([])
   const stopRefs = useRef(new Map<string, HTMLElement>())
-  const latest = useRef({ palette, sheetTop, focus, highlight, onInteract, onStamp, onTripsInView, showRoute })
+  const latest = useRef({ palette, sheetTop, focus, highlight, onInteract, onStamp, onTripsInView, year })
   const ready = useRef(false)
   const syncRef = useRef(() => {})
 
   useEffect(() => {
-    latest.current = { palette, sheetTop, focus, highlight, onInteract, onStamp, onTripsInView, showRoute }
+    latest.current = { palette, sheetTop, focus, highlight, onInteract, onStamp, onTripsInView, year }
   })
 
   useEffect(() => {
@@ -219,8 +245,9 @@ export function MapView({ palette, locateTick, showRoute, sheetTop, focus, highl
     }
     stopEls.set(key(currentPoint), trip(add(currentPoint, "here-pin", `<i></i>`)))
     const syncMarkers = () => {
-      const { focus, showRoute } = latest.current
-      const visible = showRoute && !isGlobe(focus) && !isAway(focus) && map.getZoom() >= OVERVIEW_ZOOM
+      const { focus, year } = latest.current
+      const lisbonOn = year === "all" || year === 2026
+      const visible = lisbonOn && !isGlobe(focus) && !isAway(focus) && map.getZoom() >= OVERVIEW_ZOOM
       const day = isDay(focus) ? focus : TODAY
       for (const el of markerRefs.current) el.style.display = visible && (!el.dataset.day || el.dataset.day === day) ? "" : "none"
     }
@@ -293,8 +320,12 @@ export function MapView({ palette, locateTick, showRoute, sheetTop, focus, highl
         data: {
           type: "FeatureCollection",
           features: [
-            ...passportArcs.map((coordinates) => ({ type: "Feature" as const, properties: { id: "" }, geometry: { type: "LineString" as const, coordinates } })),
-            ...passportStamps.map((stamp) => ({ type: "Feature" as const, properties: { id: stamp.id }, geometry: { type: "Point" as const, coordinates: stamp.coord } })),
+            ...passportArcs.map((coordinates, index) => ({
+              type: "Feature" as const,
+              properties: { id: "", from: stampYear(passportStamps[index]), to: stampYear(passportStamps[index + 1]) },
+              geometry: { type: "LineString" as const, coordinates },
+            })),
+            ...passportStamps.map((stamp) => ({ type: "Feature" as const, properties: { id: stamp.id, from: stampYear(stamp), to: stampYear(stamp) }, geometry: { type: "Point" as const, coordinates: stamp.coord } })),
           ],
         },
       })
@@ -327,8 +358,8 @@ export function MapView({ palette, locateTick, showRoute, sheetTop, focus, highl
       })
       applyPalette(map, latest.current.palette)
       ready.current = true
-      syncRoute(map, latest.current.focus, latest.current.highlight, latest.current.showRoute)
-      frame(map, latest.current.sheetTop, latest.current.focus, latest.current.highlight)
+      syncRoute(map, latest.current.focus, latest.current.highlight, latest.current.year)
+      frame(map, latest.current.sheetTop, latest.current.focus, latest.current.highlight, latest.current.year)
     })
     syncRef.current = syncMarkers
 
@@ -353,15 +384,15 @@ export function MapView({ palette, locateTick, showRoute, sheetTop, focus, highl
     const map = mapRef.current
     if (!map) return
     syncRef.current()
-    if (ready.current) syncRoute(map, focus, highlight, showRoute)
-  }, [showRoute, focus, highlight])
+    if (ready.current) syncRoute(map, focus, highlight, year)
+  }, [year, focus, highlight])
 
   useEffect(() => {
     const highlighted = isDay(focus) ? key(dayFocus(focus).first) : null
     for (const [id, el] of stopRefs.current) el.classList.toggle("focus", id.endsWith(`@${highlighted}`))
     const map = mapRef.current
-    if (map && ready.current) frame(map, sheetTop, focus, highlight)
-  }, [sheetTop, focus, highlight, locateTick])
+    if (map && ready.current) frame(map, sheetTop, focus, highlight, year)
+  }, [sheetTop, focus, highlight, locateTick, year])
 
   return (
     <div className="map-wrap">
@@ -370,16 +401,36 @@ export function MapView({ palette, locateTick, showRoute, sheetTop, focus, highl
   )
 }
 
-function syncRoute(map: maplibregl.Map, focus: MapFocus, highlight: MapHighlight, showRoute: boolean) {
+function yearClause(year: Year): maplibregl.FilterSpecification | null {
+  if (year === "all") return null
+  const ids = tripsIn(year)
+  return ids.length ? ["in", ["get", "trip"], ["literal", ids]] : ["==", ["get", "trip"], ""]
+}
+
+function passportFilter(kind: "LineString" | "Point", year: Year) {
+  const base: maplibregl.FilterSpecification = ["==", ["geometry-type"], kind]
+  if (year === "all") return base
+  return ["all", base, ["==", ["get", "from"], year], ["==", ["get", "to"], year]] as maplibregl.FilterSpecification
+}
+
+function syncRoute(map: maplibregl.Map, focus: MapFocus, highlight: MapHighlight, year: Year) {
   const globe = isGlobe(focus)
-  const vis = showRoute && !globe ? "visible" : "none"
+  const vis = globe ? "none" : "visible"
   for (const id of ROUTE_LAYERS) {
     if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis)
   }
   for (const id of PASSPORT_LAYERS) {
-    if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", globe || showRoute ? "visible" : "none")
+    if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "visible")
   }
+  if (map.getLayer("passport-arcs")) map.setFilter("passport-arcs", passportFilter("LineString", year))
+  if (map.getLayer("passport-dots")) map.setFilter("passport-dots", passportFilter("Point", year))
   if (!map.getLayer("path-dots")) return
+  const clause = focus === "trip" ? yearClause(year) : null
+  const withYear = (base: maplibregl.FilterSpecification) => (clause ? ["all", base, clause] : base) as maplibregl.FilterSpecification
+  map.setFilter("path-glow", withYear(["==", ["get", "future"], true]))
+  map.setFilter("path-future", withYear(["==", ["get", "future"], true]))
+  map.setFilter("path-past", withYear(["==", ["get", "future"], false]))
+  map.setFilter("path-dots", clause)
   const picked: maplibregl.ExpressionSpecification = highlight
     ? ["all", ["==", ["get", "trip"], highlight.trip], ["==", ["get", "day"], highlight.day]]
     : ["literal", false]
@@ -392,6 +443,7 @@ function syncRoute(map: maplibregl.Map, focus: MapFocus, highlight: MapHighlight
   map.setPaintProperty("path-future", "line-color", highlight ? ["case", picked, "#737b91", "#d9dce4"] : "#999fad")
   map.setPaintProperty("path-glow", "line-opacity", highlight ? ["case", picked, 0.08, 0] : 0)
   map.setPaintProperty("path-past", "line-opacity", shown(1, 1, 0.18))
+  map.setPaintProperty("path-past", "line-width", isAway(focus) ? 6 : ["case", ["==", ["get", "trip"], "lisbon"], 6, 2])
   const dots = (highlight ? ["case", picked, 1, 0.25] : 1) as maplibregl.ExpressionSpecification | number
   map.setPaintProperty("path-dots", "circle-opacity", dots)
   map.setPaintProperty("path-dots", "circle-stroke-opacity", highlight ? ["case", picked, ["case", future, 0.65, 1], future, 0.25, 0.25] : ["case", future, 0.5, 1])
