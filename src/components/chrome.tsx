@@ -173,9 +173,10 @@ export function BackButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-export function Toolbar({ children }: { children: ReactNode }) {
+export function Toolbar({ lead, children }: { lead?: ReactNode; children: ReactNode }) {
   return (
     <footer className="page-bar">
+      {lead}
       <div className="sheet-actions">{children}</div>
     </footer>
   )

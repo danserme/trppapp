@@ -6,7 +6,7 @@ import { DaySegments, StatusBar } from "./chrome"
 const agenda = [
   { time: "15.00", icon: "/assets/home/w-museum.svg", title: "Museum of Arts", tone: "past" },
   { time: "17.00", icon: "/assets/home/w-hotel.svg", title: "Hotel Da Baixa", tone: "now" },
-  { time: "20.00", icon: "/assets/home/w-pin.svg", title: "Dinner · poll 4/7", tone: "next" },
+  { time: "20.00", icon: "/assets/home/w-pin.svg", title: "Dinner · poll 4/5", tone: "next" },
 ] as const
 
 const edgeDots = [
@@ -77,9 +77,9 @@ export function HomeScreen() {
       <div className="home-row">
         <button type="button" className="widget widget-map" onClick={launch("map")} aria-label="Open trip map">
           <span className="widget-card">
-            <img className="widget-map-bg" src="/assets/home/map-widget-bg.png" alt="" />
-            <img className="widget-map-shot" src="/assets/home/map-widget-shot.png" alt="" />
-            <img className="widget-map-route" src="/assets/home/map-widget-route.svg" alt="" />
+            <img className="widget-map-bg" src="/assets/home/widget-map.png" alt="" />
+            <img className="widget-map-shot" src="/assets/home/widget-shot.png" alt="" />
+            <img className="widget-map-route" src="/assets/home/widget-route.svg" alt="" />
             <span className="widget-map-panel">
               <span>
                 <b>Day 2/4</b>

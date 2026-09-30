@@ -1,7 +1,29 @@
 import { useRef, useState, type CSSProperties, type PointerEvent } from "react"
-import { passportStamps } from "../data"
+import { passportStamps, trips, type Stamp } from "../data"
 import { useStore } from "../state"
 import { BackButton } from "./chrome"
+
+function useStampLook(stamp: Stamp) {
+  const { state } = useStore()
+  const cover = state.stampCovers[stamp.id] ?? stamp.image
+  const trip = trips.find((item) => item.stampIds.includes(stamp.id))
+  const title = trip?.when === "current" ? state.tripTitle : (trip?.title ?? stamp.city)
+  return { cover, title, photos: [cover, ...stamp.photos.filter((src) => src !== cover)] }
+}
+
+export function StampArt({ stamp, photo, className = "", style }: { stamp: Stamp; photo?: string; className?: string; style?: CSSProperties }) {
+  const look = useStampLook(stamp)
+  const cover = photo ?? look.cover
+  const title = look.title
+  return (
+    <span className={`stamp-art ${className}`} style={style}>
+      <img className="stamp-photo" src={cover} alt="" draggable={false} />
+      <span className="stamp-grain" />
+      <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
+      <span className="stamp-title">{title}</span>
+    </span>
+  )
+}
 
 export function PassportPanel() {
   const { dispatch } = useStore()
@@ -32,7 +54,7 @@ export function PassportPanel() {
           <dt>Cities</dt>
         </div>
         <div>
-          <dd>21</dd>
+          <dd>18</dd>
           <dt>Nights away</dt>
         </div>
       </dl>
@@ -46,10 +68,10 @@ export function PassportPanel() {
         </article>
         <button type="button" className="pass-card" onClick={() => dispatch({ type: "open-trip", trip: "tokyo" })}>
           <small>
-            <img className="asset" src="/assets/passport/plane.svg" alt="" /> Next trip
+            <img className="asset" src="/assets/passport/next.svg" alt="" /> Next trip
           </small>
           <strong>Tokyo</strong>
-          <em>Nov 11 · in 36 days</em>
+          <em>Nov 11 · in 42 days</em>
           <img className="asset pass-card-go" src="/assets/passport/chevron.svg" alt="" />
         </button>
       </div>
@@ -69,8 +91,8 @@ export function PassportPanel() {
             style={{ "--tilt": `${stamp.tilt}deg` } as CSSProperties}
             onClick={() => dispatch({ type: "stamp", id: stamp.id })}
           >
-            <img src={stamp.image} alt="" draggable={false} />
-            {all && <span>{stamp.city}</span>}
+            <StampArt stamp={stamp} />
+            {all && <span className="stamp-city">{stamp.city}</span>}
           </button>
         ))}
         <button type="button" className="add-stamp" aria-label="Create a stamp" onClick={() => dispatch({ type: "toast", toast: "Stamps unlock when a trip ends." })}>
@@ -84,21 +106,19 @@ export function PassportPanel() {
 const FLIP = 180
 
 export function StampViewer() {
-  const { state, dispatch } = useStore()
+  const { state } = useStore()
   const stamp = passportStamps.find((item) => item.id === state.stamp)
+  return stamp ? <StampStage key={stamp.id} stamp={stamp} /> : null
+}
+
+function StampStage({ stamp }: { stamp: Stamp }) {
+  const { dispatch } = useStore()
+  const { photos } = useStampLook(stamp)
   const [turn, setTurn] = useState({ y: 0, x: 0 })
   const [dragging, setDragging] = useState(false)
   const drag = useRef<{ x: number; y: number; from: number; lastX: number; lastT: number; speed: number; moved: boolean } | null>(null)
-  if (!stamp) return null
-
   function settle(target: number) {
     setTurn({ y: target, x: 0 })
-    if (Math.abs(target) >= FLIP * 2) {
-      window.setTimeout(() => {
-        dispatch({ type: "gallery", open: true })
-        setTurn({ y: 0, x: 0 })
-      }, 620)
-    }
   }
 
   function down(event: PointerEvent<HTMLDivElement>) {
@@ -126,12 +146,11 @@ export function StampViewer() {
     setDragging(false)
     if (!start) return
     if (!start.moved) {
-      settle(turn.y + FLIP)
+      dispatch({ type: "gallery", open: true })
       return
     }
     const fling = Math.abs(start.speed) > 0.6 ? Math.sign(start.speed) * FLIP * 0.6 : 0
-    const target = Math.round((turn.y + fling) / FLIP) * FLIP
-    settle(Math.max(-FLIP * 2, Math.min(FLIP * 2, target)))
+    settle(Math.round((turn.y + fling) / FLIP) * FLIP)
   }
 
   const style = { transform: `rotateX(${turn.x}deg) rotateY(${turn.y}deg) rotate(${stamp.tilt}deg)` }
@@ -149,24 +168,36 @@ export function StampViewer() {
       </header>
       <div className="stamp-3d" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         <div className={dragging ? "stamp-card dragging" : "stamp-card"} style={style}>
-          <img className="stamp-face" src={stamp.image} alt="" draggable={false} />
+          <StampArt stamp={stamp} className="stamp-face" />
           <div className="stamp-back">
-            <small>TripUp passport</small>
-            <strong>{stamp.city}</strong>
-            <em>{stamp.date}</em>
-            <b>{stamp.photos.length} photos</b>
+            <span className="stamp-thumbs">
+              {photos.slice(0, 4).map((src) => (
+                <img key={src} src={src} alt="" draggable={false} />
+              ))}
+            </span>
+            <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
+            <span className="stamp-back-head">
+              <strong>{stamp.city}</strong>
+              <em>
+                {stamp.date} · {stamp.photos.length} photos
+              </em>
+            </span>
           </div>
         </div>
       </div>
-      <p className="stamp-hint">Drag to turn it. Flip it all the way round to open the photos.</p>
     </div>
   )
 }
 
 export function StampGallery() {
-  const { state, dispatch } = useStore()
+  const { state } = useStore()
   const stamp = passportStamps.find((item) => item.id === state.stamp)
-  if (!stamp) return null
+  return stamp ? <GalleryPage stamp={stamp} /> : null
+}
+
+function GalleryPage({ stamp }: { stamp: Stamp }) {
+  const { dispatch } = useStore()
+  const { cover, photos } = useStampLook(stamp)
   return (
     <div className="page gallery">
       <header className="invite-head">
@@ -178,11 +209,25 @@ export function StampGallery() {
         {stamp.country} · {stamp.date} · {stamp.photos.length} photos
       </p>
       <div className="gallery-grid">
-        {stamp.photos.map((src, index) => (
-          <figure key={`${src}-${index}`} className={index === 0 ? "wide" : ""}>
-            <img src={src} alt="" />
-          </figure>
-        ))}
+        {photos.map((src, index) => {
+          const liked = src === cover
+          return (
+            <figure key={src} className={index === 0 ? "wide" : ""}>
+              <img src={src} alt="" />
+              <button
+                type="button"
+                className={liked ? "like on" : "like"}
+                aria-pressed={liked}
+                aria-label={liked ? "Stamp photo" : "Use as stamp photo"}
+                onClick={() => !liked && dispatch({ type: "stamp-cover", id: stamp.id, src })}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 20.3s-7.6-4.6-9.2-9.3C1.7 7.6 3.9 4.4 7.3 4.4c2 0 3.6 1.1 4.7 2.7 1.1-1.6 2.7-2.7 4.7-2.7 3.4 0 5.6 3.2 4.5 6.6-1.6 4.7-9.2 9.3-9.2 9.3Z" />
+                </svg>
+              </button>
+            </figure>
+          )
+        })}
       </div>
     </div>
   )

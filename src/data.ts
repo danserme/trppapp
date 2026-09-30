@@ -19,7 +19,7 @@ export const people: Record<string, Person> = {
   maria: { id: "maria", name: "Maria Kliger", photo: "/assets/people/maria.jpg", shape: "circle" },
   doris: { id: "doris", name: "Doris Meng", photo: "/assets/people/doris.jpg", shape: "circle" },
   nastya: { id: "nastya", name: "Nastya Mint", photo: "/assets/people/nastya.jpg", shape: "circle" },
-  ren: { id: "ren", name: "Ren Montefusco", photo: "/assets/avatars/man.png", shape: "circle" },
+  ren: { id: "ren", name: "Ren Montefusco", photo: "/assets/people/ren.jpg", shape: "circle" },
 }
 
 export const initialMembers = ["john", "ben", "irene", "menta"]
@@ -240,7 +240,7 @@ export type Trip = {
   when: "past" | "current" | "upcoming"
   extra: number
   people: string[]
-  stamps: number
+  stampIds: string[]
   progress?: string
   left?: string
   next?: { title: string; time: string }
@@ -254,16 +254,25 @@ export const trips: Trip[] = [
     when: "past",
     extra: 5,
     people: ["john", "ben", "irene"],
-    stamps: 4,
+    stampIds: ["amsterdam", "rotterdam"],
   },
   {
     id: "munich",
-    title: "Munich",
+    title: "Munich & Berlin",
     dates: "3 Aug – 12 Aug, 2026",
     when: "past",
     extra: 2,
     people: ["john", "ben"],
-    stamps: 4,
+    stampIds: ["munich", "berlin"],
+  },
+  {
+    id: "porto",
+    title: "Porto weekend",
+    dates: "18 Sep – 22 Sep, 2026",
+    when: "past",
+    extra: 1,
+    people: ["irene", "menta"],
+    stampIds: ["porto"],
   },
   {
     id: "lisbon",
@@ -272,7 +281,7 @@ export const trips: Trip[] = [
     when: "current",
     extra: 3,
     people: ["john", "ben"],
-    stamps: 1,
+    stampIds: ["lisbon"],
     progress: "Day 2 of 4",
     left: "2 days left",
     next: { title: "Hotel Da Baixa", time: "22.30–08.00" },
@@ -284,11 +293,72 @@ export const trips: Trip[] = [
     when: "upcoming",
     extra: 5,
     people: ["john", "ben", "irene"],
-    stamps: 0,
+    stampIds: [],
   },
 ]
 
 export const inviteLink = "https://trip.up/i/lisbon-hd"
+
+export type Ticket = {
+  id: string
+  title: string
+  mode: "flight" | "train"
+  carrier: string
+  from: { code: string; city: string; time: string }
+  to: { code: string; city: string; time: string }
+  date: string
+  rows: [string, string][]
+  code: string
+}
+
+export const tickets: Record<string, Ticket> = {
+  pass: {
+    id: "pass",
+    title: "Boarding pass",
+    mode: "flight",
+    carrier: "TAP Air Portugal",
+    from: { code: "AMS", city: "Amsterdam", time: "09.40" },
+    to: { code: "LIS", city: "Lisbon", time: "11.35" },
+    date: "5 Oct 2026",
+    rows: [["Passenger", "Ari Mendoza"], ["Flight", "TU 834"], ["Seat", "14A"], ["Gate", "D12"], ["Boards", "09.10"], ["Class", "Economy"]],
+    code: "M1MENDOZA/ARI TU834 AMSLIS 14A",
+  },
+  "tk-pass": {
+    id: "tk-pass",
+    title: "Boarding pass",
+    mode: "flight",
+    carrier: "KLM",
+    from: { code: "AMS", city: "Amsterdam", time: "14.25" },
+    to: { code: "HND", city: "Tokyo", time: "09.55" },
+    date: "11 Nov 2026",
+    rows: [["Passenger", "Ari Mendoza"], ["Flight", "KL 861"], ["Seat", "32K"], ["Gate", "F4"], ["Boards", "13.35"], ["Class", "Economy"]],
+    code: "M1MENDOZA/ARI KL861 AMSHND 32K",
+  },
+  sintra: {
+    id: "sintra",
+    title: "Train ticket",
+    mode: "train",
+    carrier: "CP Comboios",
+    from: { code: "ROS", city: "Lisboa Rossio", time: "09.11" },
+    to: { code: "SNT", city: "Sintra", time: "09.51" },
+    date: "7 Oct 2026",
+    rows: [["Passengers", "Ari + 4"], ["Train", "CP 18207"], ["Car", "3"], ["Fare", "Return · 2nd"]],
+    code: "CP18207-0710-ROSSNT-5PAX",
+  },
+  cascais: {
+    id: "cascais",
+    title: "Train ticket",
+    mode: "train",
+    carrier: "CP Comboios",
+    from: { code: "CSD", city: "Cais do Sodré", time: "10.20" },
+    to: { code: "CAS", city: "Cascais", time: "10.58" },
+    date: "8 Oct 2026",
+    rows: [["Passengers", "Ari + 4"], ["Train", "CP 19031"], ["Car", "2"], ["Fare", "Single · 2nd"]],
+    code: "CP19031-0810-CSDCAS-5PAX",
+  },
+}
+
+export const parsedTickets = ["sintra", "cascais"]
 
 export type Stamp = {
   id: string
@@ -301,15 +371,17 @@ export type Stamp = {
   photos: string[]
 }
 
-const lisbonPhotos = ["/assets/hotel-baixa.png", "/assets/food/elevada.jpg", "/assets/food/spiga.jpg", "/assets/food/ribatejo.jpg", "/assets/home/map-shot.png"]
+const cityPhoto = "/assets/passport/lisbon.jpg"
+const shot = (name: string) => `/assets/trips/${name}.jpg`
+const lisbonPhotos = [cityPhoto, shot("lisbon-tram"), "/assets/hotel-baixa.png", "/assets/food/elevada.jpg", "/assets/food/spiga.jpg", "/assets/food/ribatejo.jpg"]
 
 export const passportStamps: Stamp[] = [
-  { id: "amsterdam", city: "Amsterdam", country: "Netherlands", date: "Mar 2025", coord: [4.9041, 52.3676], tilt: 6, image: "/assets/passport/stamp-1.png", photos: ["/assets/passport/stamp-1.png", "/assets/food/ribatejo.jpg", "/assets/food/elevada.jpg"] },
-  { id: "rotterdam", city: "Rotterdam", country: "Netherlands", date: "Mar 2025", coord: [4.4777, 51.9244], tilt: 0, image: "/assets/passport/stamp-2.png", photos: ["/assets/passport/stamp-2.png", "/assets/food/spiga.jpg"] },
-  { id: "munich", city: "Munich", country: "Germany", date: "Aug 2026", coord: [11.582, 48.1351], tilt: 6, image: "/assets/passport/stamp-3.png", photos: ["/assets/passport/stamp-3.png", "/assets/food/ribatejo.jpg", "/assets/food/spiga.jpg", "/assets/food/elevada.jpg"] },
-  { id: "berlin", city: "Berlin", country: "Germany", date: "Aug 2026", coord: [13.405, 52.52], tilt: -3.49, image: "/assets/passport/stamp-4.png", photos: ["/assets/passport/stamp-4.png", "/assets/food/elevada.jpg"] },
-  { id: "porto", city: "Porto", country: "Portugal", date: "Oct 2026", coord: [-8.6291, 41.1579], tilt: 0, image: "/assets/passport/stamp-1.png", photos: ["/assets/passport/stamp-1.png", "/assets/food/spiga.jpg", "/assets/food/ribatejo.jpg"] },
-  { id: "lisbon", city: "Lisbon", country: "Portugal", date: "Oct 2026", coord: [-9.1393, 38.7223], tilt: 5, image: "/assets/stamp-big.png", photos: lisbonPhotos },
+  { id: "amsterdam", city: "Amsterdam", country: "Netherlands", date: "Mar 2025", coord: [4.9041, 52.3676], tilt: 6, image: shot("amsterdam-1"), photos: [shot("amsterdam-1"), shot("amsterdam-2")] },
+  { id: "rotterdam", city: "Rotterdam", country: "Netherlands", date: "Mar 2025", coord: [4.4777, 51.9244], tilt: 0, image: shot("rotterdam-1"), photos: [shot("rotterdam-1")] },
+  { id: "munich", city: "Munich", country: "Germany", date: "Aug 2026", coord: [11.582, 48.1351], tilt: 6, image: shot("munich-1"), photos: [shot("munich-1"), shot("munich-2")] },
+  { id: "berlin", city: "Berlin", country: "Germany", date: "Aug 2026", coord: [13.405, 52.52], tilt: -3.49, image: shot("berlin-1"), photos: [shot("berlin-1"), shot("berlin-2")] },
+  { id: "porto", city: "Porto", country: "Portugal", date: "Sep 2026", coord: [-8.6291, 41.1579], tilt: 0, image: shot("porto-1"), photos: [shot("porto-1"), shot("porto-2")] },
+  { id: "lisbon", city: "Lisbon", country: "Portugal", date: "Oct 2026", coord: [-9.1393, 38.7223], tilt: 5, image: cityPhoto, photos: lisbonPhotos },
 ]
 
 type LngLat = [number, number]
@@ -330,28 +402,38 @@ function onPath(id: string): LngLat {
   return arriving ? arriving.coords[arriving.coords.length - 1] : route.stops[id].coord
 }
 
+const isFlight = (leg: RouteData["legs"][number]) => leg.from.startsWith("flight") || leg.to.startsWith("flight")
+const drawn = (leg: RouteData["legs"][number]) => !isFlight(leg) && !leg.to.endsWith("night")
+const nowDay = route.stops.hotel.day
+const todayLegs = route.legs.filter((leg) => leg.day === nowDay && drawn(leg))
+const nowLeg = todayLegs.findIndex((leg) => leg.from === "hotel")
+
 export const currentPoint: LngLat = onPath("hotel")
-export const pastRoute = join(route.legs.slice(0, nowIndex))
-export const futureRoute = join(route.legs.slice(nowIndex))
-export const tripCoords = [...pastRoute, ...futureRoute]
+export const pastRoute = join(todayLegs.slice(0, nowLeg))
+const firstFuture = route.legs.findIndex((leg) => leg.from === "hotel" && leg.day === nowDay)
+export const futureRoute = join(route.legs.slice(firstFuture).filter((leg) => !leg.from.startsWith("flight")))
 
 
 const key = ([lng, lat]: LngLat) => `${lng},${lat}`
-const isFlight = (leg: RouteData["legs"][number]) => leg.from.startsWith("flight") || leg.to.startsWith("flight")
-
 export function dayRoute(day: DayId): LngLat[][] {
-  return route.legs.filter((leg) => leg.day === day && !isFlight(leg)).map((leg) => leg.coords)
+  return route.legs.filter((leg) => leg.day === day && drawn(leg)).map((leg) => leg.coords)
 }
 
-export const mapStops: { id: string; coord: LngLat; past: boolean }[] = route.order
-  .map((id, index) => ({ id, coord: onPath(id), past: index < nowIndex }))
-  .filter((item, index, list) => key(item.coord) !== key(currentPoint) && list.findIndex((other) => key(other.coord) === key(item.coord)) === index)
+export const mapStops: { id: string; day: DayId; coord: LngLat; past: boolean }[] = route.order
+  .map((id, index) => ({ id, day: route.stops[id].day, coord: onPath(id), past: index < nowIndex }))
+  .filter((item) => !item.id.startsWith("flight") && !item.id.endsWith("night") && key(item.coord) !== key(currentPoint))
+
+export const futureStops: LngLat[] = route.order
+  .slice(nowIndex + 1)
+  .filter((id) => !id.endsWith("night"))
+  .map((id) => onPath(id))
+  .filter((coord) => key(coord) !== key(currentPoint))
 
 export function dayFocus(day: DayId) {
   const ids = route.order.filter((id) => route.stops[id].day === day)
   const local = ids.filter((id) => !id.startsWith("flight"))
   const focus = local.length ? local : ids
-  const legs = route.legs.filter((leg) => leg.day === day && !isFlight(leg))
+  const legs = route.legs.filter((leg) => leg.day === day && drawn(leg))
   return {
     firstId: focus[0],
     first: onPath(focus[0]),

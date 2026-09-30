@@ -75,6 +75,7 @@ type State = {
   billAmount: string
   billPlace: string
   billDate: string
+  billPayer: string
   splitIds: string[]
   locateTick: number
   launched: boolean
@@ -84,6 +85,8 @@ type State = {
   tripEnd: string
   stamp: string | null
   gallery: boolean
+  stampCovers: Record<string, string>
+  ticket: string
   pollLive: DayId | null
   trip: TripId
 }
@@ -113,6 +116,7 @@ const initial: State = {
   billAmount: "148",
   billPlace: "Pizzeria La Spiga",
   billDate: "07/10/26",
+  billPayer: "ari",
   splitIds: ["john", "ben", "irene", "menta"],
   locateTick: 0,
   year: "all",
@@ -123,6 +127,8 @@ const initial: State = {
   tripEnd: "2026-10-08",
   stamp: null,
   gallery: false,
+  stampCovers: {},
+  ticket: "pass",
   pollLive: null,
   trip: "lisbon",
 }
@@ -152,9 +158,10 @@ type Action =
   | { type: "edit-trip"; title: string; start: string; end: string; members: string[] }
   | { type: "stamp"; id: string | null }
   | { type: "gallery"; open: boolean }
+  | { type: "stamp-cover"; id: string; src: string }
   | { type: "sim-vote" }
   | { type: "search"; search: string }
-  | { type: "bill"; patch: Partial<Pick<State, "billAmount" | "billPlace" | "billDate">> }
+  | { type: "bill"; patch: Partial<Pick<State, "billAmount" | "billPlace" | "billDate" | "billPayer">> }
   | { type: "toggle-split"; id: string }
   | { type: "save-bill" }
   | { type: "toast"; toast: string | null; tone?: "info" | "error" }
@@ -217,6 +224,7 @@ function reducer(state: State, action: Action): State {
         overlay: action.overlay,
         pollAnchor: action.overlay === "poll" ? (action.anchor ?? null) : state.pollAnchor,
         pollVoting: action.overlay === "poll" ? (action.voting ?? true) : state.pollVoting,
+        ticket: action.overlay === "ticket" ? (action.anchor ?? "pass") : state.ticket,
         splitOpen: false,
         selectedFriends:
           action.overlay === "invite" ? [] : state.selectedFriends,
@@ -341,6 +349,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, stamp: action.id, gallery: false }
     case "gallery":
       return { ...state, gallery: action.open }
+    case "stamp-cover":
+      return { ...state, stampCovers: { ...state.stampCovers, [action.id]: action.src }, toast: "Stamp photo updated.", toastTone: "info" }
     case "search":
       return { ...state, search: action.search }
     case "bill":
@@ -361,7 +371,7 @@ function reducer(state: State, action: Action): State {
         title: state.billPlace,
         amount: Number.isFinite(amount) ? amount : 0,
         split: state.splitIds.length + 1,
-        paidBy: "you",
+        paidBy: state.billPayer === "ari" ? "you" : state.billPayer,
       }
       return {
         ...state,

@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import QRCode from "qrcode"
 import { DayPicker } from "react-day-picker"
 import "react-day-picker/style.css"
 import {
   billItems,
+  passportStamps,
   tripDays,
   friends,
   inviteLink,
   savedPlaces,
+  tickets,
   trips,
   type Poll,
 } from "../data"
@@ -15,13 +17,37 @@ import { dusk, paper, daylight, type Palette } from "../mapStyle"
 import { dayStops, isPastDay, person, shortDate, tripRange, useStore } from "../state"
 import { AvatarStack, BackButton, CheckRow, Face, Toolbar } from "./chrome"
 import { CurrentTripCard } from "./TripSheet"
+import { StampArt } from "./Passport"
 import { IconChevron, IconList, IconPlus, IconSearch, IconShare } from "./icons"
+
+function tripShots(ids: string[], covers: Record<string, string>) {
+  const stamps = ids.flatMap((id) => passportStamps.filter((item) => item.id === id))
+  const shots = stamps.map((stamp) => ({ stamp, photo: covers[stamp.id] ?? stamp.image }))
+  for (const stamp of stamps) {
+    for (const photo of stamp.photos) if (!shots.some((item) => item.photo === photo)) shots.push({ stamp, photo })
+  }
+  return shots.slice(0, 3)
+}
 
 export function TripList() {
   const { state, dispatch } = useStore()
   const visible = trips.filter((trip) => state.filter === "all" || trip.when === state.filter)
+  const page = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const root = page.current
+    const card = root?.querySelector<HTMLElement>(".trip-list .peek-card")
+    if (!root || !card || state.filter !== "all") return
+    const head = root.querySelector<HTMLElement>(".list-top")?.offsetHeight ?? 0
+    const top = card.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop
+    const bottom = top + card.offsetHeight
+    const floor = root.clientHeight - 128
+    let target = root.scrollTop
+    if (bottom - target > floor) target = bottom - floor
+    if (top - target < head + 8) target = top - head - 8
+    if (target !== root.scrollTop) root.scrollTo({ top: Math.max(0, target), behavior: "smooth" })
+  }, [state.filter])
   return (
-    <div className="page list-page">
+    <div className="page list-page" ref={page}>
       <div className="list-top">
         <header className="page-head">
           <h1>My Trips</h1>
@@ -61,10 +87,10 @@ export function TripList() {
                   </button>
                 )}
               </div>
-              {trip.stamps > 0 && (
+              {trip.stampIds.length > 0 && (
                 <span className="stamp-row" aria-hidden="true">
-                  {Array.from({ length: trip.stamps }, (_, index) => (
-                    <img key={index} src="/assets/stamp.png" alt="" style={{ transform: `rotate(${[-8, 4, -3, 7][index % 4]}deg)` }} />
+                  {tripShots(trip.stampIds, state.stampCovers).map(({ stamp, photo }, index) => (
+                    <StampArt key={photo} stamp={stamp} photo={photo} style={{ transform: `rotate(${[-8, 4, -3, 7][index % 4]}deg)` }} />
                   ))}
                 </span>
               )}
@@ -417,41 +443,88 @@ function TimeField({ label, value, onChange }: { label: string; value: string; o
   )
 }
 
+const firstName = (id: string) => (id === "ari" ? "Ari" : (person(id)?.name.split(" ")[0] ?? id))
+
 const euro = (value: number) => `${value.toFixed(2).replace(".", ",")}€`
 
 export function BillScreen() {
   const { state, dispatch } = useStore()
   const [splitBy, setSplitBy] = useState<"items" | "exact" | "percent">("items")
+  const [payerOpen, setPayerOpen] = useState(false)
   const splitCount = Math.max(state.splitIds.length + 1, 1)
   const total = Number(state.billAmount.replace(",", ".")) || 0
   const sharers = ["ari", ...state.splitIds]
+  const amountRef = useRef<HTMLInputElement>(null)
+  const [custom, setCustom] = useState<Record<"exact" | "percent", Record<string, string>>>({ exact: {}, percent: {} })
+  const evenShare = (id: string) => {
+    const whole = splitBy === "exact" ? Math.round(total * 100) : 100
+    const base = Math.floor(whole / sharers.length)
+    const part = id === sharers[sharers.length - 1] ? whole - base * (sharers.length - 1) : base
+    return splitBy === "exact" ? (part / 100).toFixed(2).replace(".", ",") : String(part)
+  }
+  const shareOf = (id: string) => (splitBy === "items" ? "" : (custom[splitBy][id] ?? evenShare(id)))
+  const assigned = sharers.reduce((sum, id) => sum + (Number(shareOf(id).replace(",", ".")) || 0), 0)
+  const left = (splitBy === "exact" ? total : 100) - assigned
+  const leftLabel = splitBy === "exact" ? euro(Math.abs(left)) : `${Math.round(Math.abs(left) * 10) / 10}%`
   return (
     <div className="page bill">
       <header className="invite-head">
         <BackButton onClick={() => dispatch({ type: "back" })} />
         <h1>Add bill</h1>
-        <button type="button" className="glass-icon glass" aria-label="Scan receipt" onClick={() => dispatch({ type: "toast", toast: "Receipt scanning soon" })}>
-          <img className="asset" src="/assets/icons/scan.svg" alt="" />
-        </button>
+        <span />
       </header>
-      <label className="amount">
-        <input
-          inputMode="decimal"
-          aria-label="Amount"
-          value={state.billAmount}
-          size={Math.max(state.billAmount.length, 1)}
-          onChange={(event) => dispatch({ type: "bill", patch: { billAmount: event.target.value } })}
-        />
-        <span>€</span>
-        <img className="asset amount-edit" src="/assets/icons/pencil.svg" alt="" />
-      </label>
+      <div className="amount">
+        <label className="amount-value">
+          <input
+            ref={amountRef}
+            inputMode="decimal"
+            aria-label="Amount"
+            value={state.billAmount}
+            size={Math.max(state.billAmount.length, 1)}
+            onChange={(event) => dispatch({ type: "bill", patch: { billAmount: event.target.value } })}
+          />
+          <span>€</span>
+          <button
+            type="button"
+            className="amount-edit"
+            aria-label="Edit amount"
+            onClick={() => {
+              amountRef.current?.focus()
+              amountRef.current?.select()
+            }}
+          >
+            <img className="asset" src="/assets/icons/pencil.svg" alt="" />
+          </button>
+        </label>
+      </div>
       <div className="paid-by">
         Paid by
-        <button type="button" className="payer">
-          <Face id="ari" size={22} />
-          Ari
+        <button type="button" className="payer" aria-haspopup="menu" aria-expanded={payerOpen} onClick={() => setPayerOpen((open) => !open)}>
+          <Face id={state.billPayer} size={22} />
+          {firstName(state.billPayer)}
           <IconChevron />
         </button>
+        {payerOpen && (
+          <div className="menu payer-menu" role="menu">
+            {["ari", ...state.members].map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={state.billPayer === id}
+                className={state.billPayer === id ? "on" : ""}
+                onClick={() => {
+                  dispatch({ type: "bill", patch: { billPayer: id } })
+                  setPayerOpen(false)
+                }}
+              >
+                <Face id={id} size={22} />
+                {id === "ari" ? "You" : person(id)?.name}
+                {state.billPayer === id && <img className="asset" src="/assets/icons/check.svg" alt="" />}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <div className="when">
         <label>
@@ -504,14 +577,46 @@ export function BillScreen() {
                 <div className="bill-row">
                   <span className="bill-person">
                     <Face id={id} size={22} />
-                    {person(id)?.name}
+                    {id === "ari" ? "You" : person(id)?.name}
                   </span>
-                  <b>{splitBy === "exact" ? euro(total / sharers.length) : `${Math.round(100 / sharers.length)}%`}</b>
+                  <label className="share-field">
+                    <input
+                      inputMode="decimal"
+                      aria-label={`${splitBy === "exact" ? "Amount" : "Percentage"} for ${id === "ari" ? "you" : person(id)?.name}`}
+                      value={shareOf(id)}
+                      onFocus={(event) => event.currentTarget.select()}
+                      onChange={(event) => {
+                        const value = event.target.value.replace(/[^\d.,]/g, "")
+                        setCustom((prev) => ({ ...prev, [splitBy]: { ...prev[splitBy], [id]: value } }))
+                      }}
+                    />
+                    <span>{splitBy === "exact" ? "€" : "%"}</span>
+                  </label>
                 </div>
               </li>
             ))}
       </ul>
-      <Toolbar>
+      {splitBy !== "items" && (
+        <p className={Math.abs(left) < 0.005 ? "share-left ok" : "share-left"}>
+          {Math.abs(left) < 0.005 ? (
+            <>Adds up to {splitBy === "exact" ? euro(total) : "100%"}</>
+          ) : (
+            <>
+              {leftLabel} {left > 0 ? "left to assign" : "over the total"}
+              <button type="button" onClick={() => setCustom((prev) => ({ ...prev, [splitBy]: {} }))}>
+                Split evenly
+              </button>
+            </>
+          )}
+        </p>
+      )}
+      <Toolbar
+        lead={
+          <button type="button" className="glass-icon glass" aria-label="Scan receipt" onClick={() => dispatch({ type: "toast", toast: "Point the camera at the receipt" })}>
+            <img className="asset" src="/assets/icons/scan.svg" alt="" />
+          </button>
+        }
+      >
         <button type="button" className="add-btn glass" onClick={() => dispatch({ type: "save-bill" })}>
           Save bill
         </button>
@@ -541,57 +646,62 @@ export function BillScreen() {
 }
 
 export function TicketScreen() {
-  const { dispatch } = useStore()
+  const { state, dispatch } = useStore()
+  const ticket = tickets[state.ticket] ?? tickets.pass
+  const [svg, setSvg] = useState("")
+  useEffect(() => {
+    QRCode.toString(ticket.code, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#0e1a36", light: "#00000000" } }).then((value) => {
+      setSvg(value.replace(/fill="#00000000"/g, 'fill="none"'))
+    })
+  }, [ticket.code])
   return (
     <div className="page ticket-page">
       <header className="invite-head">
         <BackButton onClick={() => dispatch({ type: "back" })} />
-        <h1>Boarding pass</h1>
+        <h1>{ticket.title}</h1>
         <span />
       </header>
-      <article className="pass">
-        <div className="pass-top">
-          <div>
-            <small>From</small>
-            <strong>AMS</strong>
-            <em>Amsterdam</em>
-          </div>
-          <div className="pass-mid">
-            <img src="/assets/stamp.png" alt="" />
-          </div>
-          <div>
-            <small>To</small>
-            <strong>LIS</strong>
-            <em>Lisbon</em>
+      <article className={`ticket ${ticket.mode}`}>
+        <div className="ticket-top">
+          <p className="ticket-carrier">
+            <span>{ticket.carrier}</span>
+            <span>{ticket.date}</span>
+          </p>
+          <div className="ticket-route">
+            <div>
+              <strong>{ticket.from.code}</strong>
+              <em>{ticket.from.city}</em>
+              <b>{ticket.from.time}</b>
+            </div>
+            <span className="ticket-line" aria-hidden="true">
+              <img className="asset" src={ticket.mode === "flight" ? "/assets/passport/plane.svg" : "/assets/icons/tram.svg"} alt="" />
+            </span>
+            <div>
+              <strong>{ticket.to.code}</strong>
+              <em>{ticket.to.city}</em>
+              <b>{ticket.to.time}</b>
+            </div>
           </div>
         </div>
-        <dl>
-          <div>
-            <dt>Passenger</dt>
-            <dd>Ari</dd>
-          </div>
-          <div>
-            <dt>Date</dt>
-            <dd>5 Oct 2026</dd>
-          </div>
-          <div>
-            <dt>Flight</dt>
-            <dd>TU 834</dd>
-          </div>
-          <div>
-            <dt>Seat</dt>
-            <dd>14A</dd>
-          </div>
-          <div>
-            <dt>Gate</dt>
-            <dd>D12</dd>
-          </div>
-          <div>
-            <dt>Boards</dt>
-            <dd>09.10</dd>
-          </div>
+        <dl className={ticket.rows.length % 3 === 0 ? "ticket-rows" : "ticket-rows two"}>
+          {ticket.rows.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
         </dl>
+        <div className="ticket-tear" aria-hidden="true" />
+        <div className="ticket-qr">
+          <div className="qr" dangerouslySetInnerHTML={{ __html: svg }} />
+          <small>{ticket.code}</small>
+        </div>
       </article>
+      <Toolbar>
+        <button type="button" className="add-btn glass" onClick={() => dispatch({ type: "toast", toast: "Added to Apple Wallet." })}>
+          Add to Wallet
+        </button>
+      </Toolbar>
     </div>
   )
 }

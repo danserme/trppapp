@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react"
 import * as maplibregl from "maplibre-gl"
-import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url"
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url"
 import "maplibre-gl/dist/maplibre-gl.css"
 import {
   currentPoint,
   dayFocus,
   dayRoute,
   futureRoute,
+  futureStops,
   mapStops,
   passportArcs,
   passportStamps,
@@ -32,7 +33,7 @@ type Props = {
   onStamp: (id: string) => void
 }
 
-const ROUTE_LAYERS = ["route-past", "route-future", "route-day", "tokyo-line", "tokyo-dots"]
+const ROUTE_LAYERS = ["route-past", "route-future", "route-future-stops", "route-day", "tokyo-line", "tokyo-dots"]
 const PASSPORT_LAYERS = ["passport-arcs", "passport-dots"]
 const OVERVIEW_ZOOM = 8.5
 const isGlobe = (focus: MapFocus) => focus === "globe" || focus.startsWith("stamp:")
@@ -132,13 +133,16 @@ export function MapView({ palette, locateTick, showRoute, sheetTop, focus, onInt
       return el
     }
     for (const stop of mapStops) {
-      stopEls.set(key(stop.coord), trip(add(stop.coord, stop.past ? "stop-dot past" : "stop-dot", "")))
+      const el = trip(add(stop.coord, stop.past ? "stop-dot past" : "stop-dot", ""))
+      el.dataset.day = stop.day
+      stopEls.set(`${stop.id}@${key(stop.coord)}`, el)
     }
     stopEls.set(key(currentPoint), trip(add(currentPoint, "here-pin", `<i></i>`)))
     const syncMarkers = () => {
       const { focus, showRoute } = latest.current
       const visible = showRoute && !isGlobe(focus) && focus !== "tokyo" && map.getZoom() >= OVERVIEW_ZOOM
-      for (const el of markerRefs.current) el.style.display = visible ? "" : "none"
+      const day = isDay(focus) ? focus : TODAY
+      for (const el of markerRefs.current) el.style.display = visible && (!el.dataset.day || el.dataset.day === day) ? "" : "none"
     }
     syncMarkers()
     map.on("zoom", syncMarkers)
@@ -169,7 +173,7 @@ export function MapView({ palette, locateTick, showRoute, sheetTop, focus, onInt
         source: "trip-route",
         filter: ["==", ["get", "kind"], "future"],
         paint: { "line-color": "#0e1a36", "line-opacity": 0.4, "line-width": 4, "line-opacity-transition": { duration: 300 } },
-        layout: { "line-cap": "round", "line-join": "miter", "line-miter-limit": 4 },
+        layout: { "line-cap": "round", "line-join": "round" },
       })
       map.addLayer({
         id: "route-past",
@@ -185,6 +189,26 @@ export function MapView({ palette, locateTick, showRoute, sheetTop, focus, onInt
         source: "day-route",
         paint: { "line-color": "#2b59f0", "line-width": 7 },
         layout: { "line-cap": "round", "line-join": "miter", "line-miter-limit": 4 },
+      })
+      map.addSource("future-stops", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: futureStops.map((coordinates) => ({ type: "Feature" as const, properties: {}, geometry: { type: "Point" as const, coordinates } })),
+        },
+      })
+      map.addLayer({
+        id: "route-future-stops",
+        type: "circle",
+        source: "future-stops",
+        paint: {
+          "circle-radius": 3.5,
+          "circle-color": "#696b7d",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1.5,
+          "circle-opacity-transition": { duration: 300 },
+          "circle-stroke-opacity-transition": { duration: 300 },
+        },
       })
       map.addSource("tokyo", {
         type: "geojson",
@@ -281,7 +305,7 @@ export function MapView({ palette, locateTick, showRoute, sheetTop, focus, onInt
 
   useEffect(() => {
     const highlighted = isDay(focus) ? key(dayFocus(focus).first) : null
-    for (const [id, el] of stopRefs.current) el.classList.toggle("focus", id === highlighted)
+    for (const [id, el] of stopRefs.current) el.classList.toggle("focus", id.endsWith(`@${highlighted}`))
     const map = mapRef.current
     if (map && ready.current) frame(map, sheetTop, focus)
   }, [sheetTop, focus, locateTick])
@@ -307,5 +331,9 @@ function syncRoute(map: maplibregl.Map, focus: MapFocus, showRoute: boolean) {
   const day = isDay(focus)
   if (map.getLayer("route-day")) map.setPaintProperty("route-day", "line-color", day && !isPastDay(focus) && focus !== TODAY ? "#0e1a36" : "#2b59f0")
   if (map.getLayer("route-past")) map.setPaintProperty("route-past", "line-opacity", day ? 0.3 : 1)
-  if (map.getLayer("route-future")) map.setPaintProperty("route-future", "line-opacity", day ? 0.18 : 0.4)
+  if (map.getLayer("route-future")) map.setPaintProperty("route-future", "line-opacity", day ? 0.2 : 0.4)
+  if (map.getLayer("route-future-stops")) {
+    map.setPaintProperty("route-future-stops", "circle-opacity", day ? 0.4 : 1)
+    map.setPaintProperty("route-future-stops", "circle-stroke-opacity", day ? 0.4 : 1)
+  }
 }

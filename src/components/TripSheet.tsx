@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react"
-import { trips, tripDays, type DayId, type Expense, type Poll, type Stop } from "../data"
+import { parsedTickets, tickets, trips, tripDays, type DayId, type Expense, type Poll, type Stop } from "../data"
 import { PEEK, dayStops, isPastDay, person, place, tripRange, useStore } from "../state"
 import { FriendsPanel } from "./screens"
 import { PassportPanel } from "./Passport"
@@ -109,16 +109,16 @@ export function CurrentTripCard() {
   )
 }
 
-type Doc = { id: string; title: string; detail: string; kind: "link" | "file"; overlay?: "reservation" | "ticket" }
+type Doc = { id: string; title: string; detail: string; kind: "link" | "file" | "ticket"; overlay?: "reservation" | "ticket"; ticket?: string }
 
 const baseDocs: Doc[] = [
   { id: "hotel", title: "Hotel Da Baixa", detail: "Reservation · confirmation HD-2048", kind: "link", overlay: "reservation" },
-  { id: "pass", title: "Boarding pass.pdf", detail: "AMS → LIS · 5 Oct 2026", kind: "file", overlay: "ticket" },
+  { id: "pass", title: "Boarding pass", detail: "AMS → LIS · 5 Oct 2026", kind: "ticket", overlay: "ticket", ticket: "pass" },
 ]
 
 const tokyoDocs: Doc[] = [
   { id: "tk-hotel", title: "Hotel Gracery Shinjuku", detail: "Reservation · confirmation GS-7731", kind: "link" },
-  { id: "tk-pass", title: "Flight AMS → HND.pdf", detail: "KL 861 · 11 Nov 2026", kind: "file" },
+  { id: "tk-pass", title: "Boarding pass", detail: "AMS → HND · 11 Nov 2026", kind: "ticket", overlay: "ticket", ticket: "tk-pass" },
 ]
 
 const tokyo = trips.find((trip) => trip.id === "tokyo")
@@ -224,15 +224,25 @@ function TripSheetBody() {
       <input
         ref={fileRef}
         type="file"
+        accept="application/pdf,image/*"
         hidden
         onChange={(event) => {
           const file = event.target.files?.[0]
           if (!file) return
+          const parsed = docs.filter((doc) => doc.ticket && parsedTickets.includes(doc.ticket)).length
+          const ticket = tickets[parsedTickets[parsed % parsedTickets.length]]
           setDocs((current) => [
             ...current,
-            { id: `${file.name}-${current.length}`, title: file.name, detail: `Added by you · ${Math.max(1, Math.round(file.size / 1024))} KB`, kind: "file" },
+            {
+              id: `${file.name}-${current.length}`,
+              title: `${ticket.from.city} → ${ticket.to.city}`,
+              detail: `${ticket.title} · ${ticket.date}`,
+              kind: "ticket",
+              overlay: "ticket",
+              ticket: ticket.id,
+            },
           ])
-          dispatch({ type: "toast", toast: "Document added." })
+          dispatch({ type: "toast", toast: `Ticket read from ${file.name}.` })
           event.target.value = ""
         }}
       />
@@ -592,10 +602,10 @@ function Docs({ docs }: { docs: Doc[] }) {
           key={doc.id}
           type="button"
           className="doc"
-          onClick={() => (doc.overlay ? dispatch({ type: "overlay", overlay: doc.overlay }) : dispatch({ type: "toast", toast: `${doc.title} is ready to share.` }))}
+          onClick={() => (doc.overlay ? dispatch({ type: "overlay", overlay: doc.overlay, anchor: doc.ticket }) : dispatch({ type: "toast", toast: `${doc.title} is ready to share.` }))}
         >
           <span className="doc-icon">
-            <img className="asset" src={doc.kind === "link" ? "/assets/icons/link-blue.svg" : "/assets/icons/file-blue.svg"} alt="" />
+            <img className="asset" src={`/assets/icons/${doc.kind === "link" ? "link" : doc.kind === "ticket" ? "ticket" : "file"}-blue.svg`} alt="" />
           </span>
           <span className="doc-text">
             <strong>{doc.title}</strong>

@@ -52,6 +52,9 @@ function distance([a, b], [c, d]) {
   return Math.hypot(x, y)
 }
 
+// Metres a bend may deviate before it is kept; higher values give a calmer, more schematic line.
+const TOLERANCE = 45
+
 const meters = ([lng, lat]) => [lng * 87000, lat * 110540]
 
 function offset(p, a, b) {
@@ -86,7 +89,7 @@ async function leg(from, to) {
   const res = await fetch(url)
   const json = await res.json()
   const coords = json.routes?.[0]?.geometry?.coordinates ?? [from, to]
-  return simplify(coords, 4).map(([x, y]) => [Number(x.toFixed(5)), Number(y.toFixed(5))])
+  return simplify(coords, TOLERANCE).map(([x, y]) => [Number(x.toFixed(5)), Number(y.toFixed(5))])
 }
 
 const stops = {}
@@ -97,7 +100,8 @@ for (let i = 0; i < sequence.length - 1; i++) {
   const [, fromId, fromKey] = sequence[i]
   const [, toId, toKey] = sequence[i + 1]
   const coords = await leg(places[fromKey], places[toKey])
-  legs.push({ from: fromId, to: toId, day: sequence[i + 1][0], coords })
+  const overnight = sequence[i][0] !== sequence[i + 1][0] && fromId.endsWith("dinner")
+  legs.push({ from: fromId, to: toId, day: overnight ? sequence[i][0] : sequence[i + 1][0], coords })
   await new Promise((resolve) => setTimeout(resolve, 250))
 }
 
