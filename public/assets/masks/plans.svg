@@ -1,0 +1,15 @@
+<svg preserveAspectRatio="none" width="366" height="118" viewBox="0 0 366 118" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="366" height="28" fill="url(#up)"/>
+<rect y="28" width="366" height="20" fill="#D9D9D9"/>
+<rect y="48" width="366" height="70" fill="url(#low)"/>
+<defs>
+<linearGradient id="up" x1="183" y1="23" x2="183" y2="0" gradientUnits="userSpaceOnUse">
+<stop/>
+<stop offset="1" stop-opacity="0.12"/>
+</linearGradient>
+<linearGradient id="low" x1="183" y1="118" x2="183" y2="48" gradientUnits="userSpaceOnUse">
+<stop stop-opacity="0"/>
+<stop offset="1"/>
+</linearGradient>
+</defs>
+</svg>

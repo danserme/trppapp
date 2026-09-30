@@ -1,0 +1,17 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="366" height="535" viewBox="0 0 366 535" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Group 15">
+<rect id="up" y="118" width="366" height="54" fill="url(#paint0_linear_0_123)"/>
+<rect id="low" y="411" width="366" height="112" fill="url(#paint1_linear_0_123)"/>
+<path id="Exclude" d="M366 535H11V523H366V535ZM11 523H0V411H11V523ZM366 411H11V172H366V411ZM366 49H11V172H0V0H366V49Z" fill="#D9D9D9"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_123" x1="254" y1="161.984" x2="254" y2="133.677" gradientUnits="userSpaceOnUse">
+<stop/>
+<stop offset="1" stop-opacity="0"/>
+</linearGradient>
+<linearGradient id="paint1_linear_0_123" x1="254" y1="485.5" x2="254" y2="424.097" gradientUnits="userSpaceOnUse">
+<stop stop-opacity="0"/>
+<stop offset="1"/>
+</linearGradient>
+</defs>
+</svg>
