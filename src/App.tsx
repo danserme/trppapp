@@ -1,23 +1,24 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Drawer } from "vaul"
-import { MapView, type MapFocus } from "./components/MapView"
+import { MapView, type MapFocus, type MapHighlight } from "./components/MapView"
 import { HomeScreen } from "./components/HomeScreen"
 import {
   BillScreen,
   EditTrip,
+  NewTrip,
   InviteScreen,
   PollComposer,
   ReservationScreen,
   SearchScreen,
   StyleScreen,
   TicketScreen,
-  Tokyo,
   TripList,
 } from "./components/screens"
 import { BalancesSheet, TripDrawer } from "./components/TripSheet"
 import { StampGallery, StampViewer } from "./components/Passport"
 import { StatusBar, TabBar, Toast } from "./components/chrome"
 import { IconMap, IconSliders } from "./components/icons"
+import { trips } from "./data"
 import { MID, OPEN, PEEK, TALL, TODAY, Provider, useStore } from "./state"
 
 const PHONE_W = 402
@@ -63,8 +64,6 @@ function Shell() {
             title="TripUp on iPhone 17"
             src={`${location.pathname}?app=1`}
             style={{ width: PHONE_W, height: PHONE_H, transform: `scale(${scale})` }}
-            onLoad={(event) => event.currentTarget.contentWindow?.focus()}
-            onMouseEnter={(event) => event.currentTarget.contentWindow?.focus()}
           />
         </div>
       </div>
@@ -75,6 +74,8 @@ function Shell() {
 function Phone() {
   const { state, dispatch, screen, setScreen } = useStore()
   const [yearsOpen, setYearsOpen] = useState(false)
+  const [tripsInView, setTripsInView] = useState(0)
+  const showYears = tripsInView > 1 || state.year !== "all"
   const showMap = state.mode === "map"
   const drawerExpanded = state.tab !== "trips" || state.snap !== PEEK
   const showChrome = showMap && state.tab === "trips" && state.snap === PEEK
@@ -86,7 +87,7 @@ function Phone() {
     state.overlay === "reservation" ||
     state.overlay === "search" ||
     state.overlay === "edit" ||
-    state.overlay === "tokyo" ||
+    state.overlay === "new-trip" ||
     state.gallery
   const showTabs = !fullPage && !(state.tab === "trips" && state.mode === "map" && state.snap !== PEEK)
   const snapPx = screen ? Math.round(screen.clientHeight * state.snap) : 318
@@ -97,27 +98,35 @@ function Phone() {
         : "globe"
       : state.tab !== "trips" || state.snap === PEEK
         ? "trip"
-        : state.trip === "tokyo"
-          ? "tokyo"
+        : state.trip !== "lisbon"
+          ? `away:${state.trip}`
           : state.sheet !== "group" && state.tripTab === "itinerary" && state.day !== TODAY
           ? state.day
           : "now"
+
+  const dayView = state.tab === "trips" && state.snap !== PEEK && state.sheet !== "group" && state.tripTab === "itinerary"
+  const lit = dayView && (state.trip !== "lisbon" || state.day !== TODAY)
+  const highlight = useMemo<MapHighlight>(() => (lit ? { trip: state.trip, day: state.day } : null), [lit, state.trip, state.day])
+  const sheetTop = state.tab === "trips" && state.snap === PEEK ? PHONE_H - 400 : PHONE_H - snapPx
+  const [held, setHeld] = useState({ focus, highlight, sheetTop })
+  const onFriends = state.tab === "friends"
+  if (!onFriends && (held.focus !== focus || held.highlight !== highlight || held.sheetTop !== sheetTop)) setHeld({ focus, highlight, sheetTop })
+  const camera = onFriends ? held : { focus, highlight, sheetTop }
 
   useEffect(() => {
     document.documentElement.dataset.mode = "app"
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") dispatch({ type: "back" })
     }
-    const claimFocus = (event: PointerEvent) => {
-      if (!document.hasFocus()) window.focus()
-      const field = (event.target as HTMLElement).closest<HTMLElement>("input:not([type=time]), textarea")
-      if (field && document.activeElement !== field) window.setTimeout(() => field.focus(), 0)
-    }
+    // vaul 1.1.2 drops modal={false}, so its Radix focus trap listens on document and pulls focus back into the drawer.
+    const shieldFocus = (event: FocusEvent) => event.stopPropagation()
     window.addEventListener("keydown", onKey)
-    window.addEventListener("pointerdown", claimFocus, true)
+    document.body.addEventListener("focusin", shieldFocus)
+    document.body.addEventListener("focusout", shieldFocus)
     return () => {
       window.removeEventListener("keydown", onKey)
-      window.removeEventListener("pointerdown", claimFocus, true)
+      document.body.removeEventListener("focusin", shieldFocus)
+      document.body.removeEventListener("focusout", shieldFocus)
     }
   }, [dispatch])
 
@@ -136,8 +145,9 @@ function Phone() {
           palette={state.palette}
           locateTick={state.locateTick}
           showRoute={state.year === "all" || state.year === 2026}
-          sheetTop={state.tab === "trips" && state.snap === PEEK ? PHONE_H - 400 : PHONE_H - snapPx}
-          focus={focus}
+          sheetTop={camera.sheetTop}
+          focus={camera.focus}
+          highlight={camera.highlight}
           onInteract={() => {
             if (state.tab === "passport") return
             if (state.tab !== "trips" || state.snap !== PEEK) {
@@ -147,15 +157,18 @@ function Phone() {
             setYearsOpen(false)
           }}
           onStamp={(id) => dispatch({ type: "stamp", id })}
+          onTripsInView={setTripsInView}
         />
       )}
       <StatusBar />
       {showChrome && (
         <>
-          <button type="button" className="map-btn left glass" aria-label="Years" aria-expanded={yearsOpen} onClick={() => setYearsOpen((open) => !open)}>
-            <IconSliders />
-          </button>
-          {yearsOpen && (
+          {showYears && (
+            <button type="button" className="map-btn left glass" aria-label="Years" aria-expanded={yearsOpen} onClick={() => setYearsOpen((open) => !open)}>
+              <IconSliders />
+            </button>
+          )}
+          {showYears && yearsOpen && (
             <div className="year-filters glass">
               {(["All", 2025, 2026, 2027] as const).map((year) => {
                 const value = year === "All" ? "all" : year
@@ -205,7 +218,7 @@ function Phone() {
         >
           <Drawer.Portal>
             <Drawer.Content className="trip-drawer" aria-describedby={undefined} onOpenAutoFocus={(event) => event.preventDefault()}>
-              <Drawer.Title className="sr">{state.tab === "friends" ? "Friends" : state.tab === "passport" ? "Passport" : state.trip === "tokyo" ? "Tokyo" : state.tripTitle}</Drawer.Title>
+              <Drawer.Title className="sr">{state.tab === "friends" ? "Friends" : state.tab === "passport" ? "Passport" : state.trip === "lisbon" ? state.tripTitle : trips.find((trip) => trip.id === state.trip)?.title}</Drawer.Title>
               <div className={drawerExpanded ? "drawer-fill open" : "drawer-fill"} style={{ height: snapPx }}>
                 <TripDrawer />
               </div>
@@ -221,7 +234,7 @@ function Phone() {
       {state.overlay === "reservation" && <ReservationScreen />}
       {state.overlay === "search" && <SearchScreen />}
       {state.overlay === "edit" && <EditTrip />}
-      {state.overlay === "tokyo" && <Tokyo />}
+      {state.overlay === "new-trip" && <NewTrip />}
       {state.overlay === "style" && <StyleScreen />}
       {state.stamp && !state.gallery && <StampViewer />}
       {state.stamp && state.gallery && <StampGallery />}
@@ -231,7 +244,7 @@ function Phone() {
         <TabBar
           tab={state.tab}
           onTab={(tab) => dispatch({ type: "tab", tab })}
-          onSearch={() => dispatch({ type: "overlay", overlay: "search" })}
+          onAdd={() => dispatch({ type: "overlay", overlay: "new-trip" })}
         />
       )}
     </div>

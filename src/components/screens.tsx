@@ -3,15 +3,18 @@ import QRCode from "qrcode"
 import { DayPicker } from "react-day-picker"
 import "react-day-picker/style.css"
 import {
+  activityTypes,
   billItems,
   passportStamps,
   tripDays,
   friends,
+  initialMembers,
   inviteLink,
   savedPlaces,
   tickets,
   trips,
   type Poll,
+  type TripId,
 } from "../data"
 import { dusk, paper, daylight, type Palette } from "../mapStyle"
 import { dayStops, isPastDay, person, shortDate, tripRange, useStore } from "../state"
@@ -29,9 +32,11 @@ function tripShots(ids: string[], covers: Record<string, string>) {
   return shots.slice(0, 3)
 }
 
+const openable = (id: string): id is TripId => trips.some((trip) => trip.id === id)
+
 export function TripList() {
   const { state, dispatch } = useStore()
-  const visible = trips.filter((trip) => state.filter === "all" || trip.when === state.filter)
+  const visible = [...trips, ...state.createdTrips].filter((trip) => state.filter === "all" || trip.when === state.filter)
   const page = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const root = page.current
@@ -73,7 +78,8 @@ export function TripList() {
                 type="button"
                 className="trip-card-main"
                 onClick={() => {
-                  if (trip.id === "tokyo") dispatch({ type: "open-trip", trip: "tokyo" })
+                  if (openable(trip.id)) dispatch({ type: "open-trip", trip: trip.id })
+                  else dispatch({ type: "toast", toast: "Planning opens once someone accepts the invite." })
                 }}
               >
                 <h2>{trip.title}</h2>
@@ -81,8 +87,8 @@ export function TripList() {
               </button>
               <div className="trip-card-foot">
                 <AvatarStack ids={trip.people.slice(0, 2)} extra={trip.extra} size={28} surface="grey" />
-                {trip.when === "upcoming" && (
-                  <button type="button" className="plan-btn" onClick={() => dispatch({ type: "overlay", overlay: "tokyo" })}>
+                {trip.when === "upcoming" && openable(trip.id) && (
+                  <button type="button" className="plan-btn" onClick={() => dispatch({ type: "open-trip", trip: trip.id as TripId })}>
                     Plan trip
                   </button>
                 )}
@@ -207,6 +213,49 @@ export function InviteScreen() {
   )
 }
 
+const capital = (text: string) => text[0].toUpperCase() + text.slice(1)
+
+function ActivityPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener("pointerdown", close)
+    return () => document.removeEventListener("pointerdown", close)
+  }, [open])
+  return (
+    <div className="activity-pick" ref={root}>
+      <button type="button" className="activity-trigger" aria-label="Activity type" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
+        {capital(value)}
+        <IconChevron dark />
+      </button>
+      {open && (
+        <div className="menu" role="menu">
+          {activityTypes.map((type) => (
+            <button
+              key={type}
+              type="button"
+              role="menuitemradio"
+              aria-checked={value === type}
+              className={value === type ? "on" : ""}
+              onClick={() => {
+                onChange(type)
+                setOpen(false)
+              }}
+            >
+              {capital(type)}
+              {value === type && <img className="asset" src="/assets/icons/check.svg" alt="" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function PollComposer() {
   const { state, dispatch } = useStore()
   const existing = state.pollByDay[state.day]
@@ -217,6 +266,7 @@ export function PollComposer() {
   const [from, setFrom] = useState(existing?.from ?? gapFrom ?? "20.00")
   const [to, setTo] = useState(existing?.to ?? gapTo ?? "22.00")
   const [date, setDate] = useState(existing?.date ?? meta.label)
+  const [status, setStatus] = useState(existing?.status ?? (Number(from.split(".")[0]) >= 18 ? "dinner" : "visit"))
   const [options, setOptions] = useState<{ id: string; name: string }[]>(
     existing
       ? existing.options.map((option) => ({
@@ -230,7 +280,9 @@ export function PollComposer() {
   const [multiple, setMultiple] = useState(existing?.multiple ?? true)
   const [allowAdd, setAllowAdd] = useState(existing?.allowAdd ?? true)
   const [revoting, setRevoting] = useState(existing?.revoting ?? false)
-  const unsaved = savedPlaces.filter((item) => !options.some((option) => option.id === item.id))
+  const pool = state.trip === "lisbon" ? savedPlaces : []
+  const city = trips.find((trip) => trip.id === state.trip)?.title ?? "this city"
+  const unsaved = pool.filter((item) => !options.some((option) => option.id === item.id))
 
   function addDraft() {
     const text = draft.trim()
@@ -262,6 +314,7 @@ export function PollComposer() {
       multiple,
       allowAdd,
       revoting,
+      status,
       options: options.map((option) => ({ id: option.id, name: option.name, votes: [] })),
     }
     const target = tripDays(state.trip).find((day) => day.label === date)
@@ -277,10 +330,13 @@ export function PollComposer() {
         <span />
       </header>
       <div className="composer-scroll">
-        <button type="button" className="switch-row top" aria-pressed={voting} onClick={() => setVoting((value) => !value)}>
-          <Toggle on={voting} />
-          Decide by voting
-        </button>
+        <div className="composer-top">
+          <button type="button" className="switch-row" aria-pressed={voting} onClick={() => setVoting((value) => !value)}>
+            <Toggle on={voting} />
+            Decide by voting
+          </button>
+          <ActivityPicker value={status} onChange={setStatus} />
+        </div>
         <label className="question-field">
           <input
             className="question"
@@ -354,7 +410,13 @@ export function PollComposer() {
           <button type="button">View all</button>
         </div>
         <div className="saved-row" data-vaul-no-drag>
-          {unsaved.length === 0 && (
+          {pool.length === 0 && (
+            <p className="saved-empty">
+              <strong>No saved places in {city} yet</strong>
+              <em>Bookmark spots on the map and they show up here.</em>
+            </p>
+          )}
+          {pool.length > 0 && unsaved.length === 0 && (
             <p className="saved-empty">
               <strong>All saved places are in</strong>
               <em>Remove an option above to bring it back here.</em>
@@ -906,19 +968,96 @@ function toIso(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
 }
 
-export function Tokyo() {
+export function NewTrip() {
   const { dispatch } = useStore()
+  const [place, setPlace] = useState("")
+  const [title, setTitle] = useState("")
+  const [start, setStart] = useState("")
+  const [end, setEnd] = useState("")
+  const [members, setMembers] = useState<string[]>([])
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const nights = start && end ? Math.round((Date.parse(end) - Date.parse(start)) / 86400000) : 0
+  const people = [...initialMembers, ...friends]
+
+  function create() {
+    const name = title.trim() || place.trim()
+    if (!name) return dispatch({ type: "toast", toast: "Where are you going?", tone: "error" })
+    if (!start) return dispatch({ type: "toast", toast: "Pick the dates first", tone: "error" })
+    dispatch({
+      type: "create-trip",
+      trip: {
+        id: `new-${Date.now()}`,
+        title: name,
+        dates: tripRange(start, end || start),
+        when: "upcoming",
+        extra: Math.max(0, members.length - 2),
+        people: members,
+        stampIds: [],
+      },
+    })
+  }
+
   return (
-    <div className="page">
+    <div className="page edit-page">
       <header className="invite-head">
         <BackButton onClick={() => dispatch({ type: "back" })} />
-        <h1>Tokyo</h1>
+        <h1>New trip</h1>
         <span />
       </header>
-      <article className="reserve">
-        <h2>11 Nov – 14 Nov, 2026</h2>
-        <p>Five more people are in this trip. Planning stays on the list until you open it together.</p>
-      </article>
+      <label className="edit-field">
+        <span>Destination</span>
+        <input value={place} placeholder="City or country" onChange={(event) => setPlace(event.target.value)} />
+      </label>
+      <label className="edit-field">
+        <span>Trip name</span>
+        <input value={title} placeholder={place.trim() ? `e.g. Weekend in ${place.trim()}` : "Name your trip"} onChange={(event) => setTitle(event.target.value)} />
+      </label>
+      <div className="edit-field">
+        <span>Dates</span>
+        <button type="button" className={calendarOpen ? "date-range open" : "date-range"} aria-expanded={calendarOpen} onClick={() => setCalendarOpen((open) => !open)}>
+          <img className="asset" src="/assets/icons/calendar.svg" alt="" />
+          <b>{start ? (end ? tripRange(start, end) : `${shortDate(start)} – pick an end date`) : "Pick dates"}</b>
+          <em>{nights > 0 ? `${nights} nights` : ""}</em>
+        </button>
+        {calendarOpen && (
+          <div className="calendar-card compact">
+            <DayPicker
+              mode="range"
+              weekStartsOn={1}
+              defaultMonth={start ? fromIso(start) : new Date(2026, 10)}
+              disabled={{ before: new Date(2026, 9, 1) }}
+              selected={start ? { from: fromIso(start), to: end ? fromIso(end) : undefined } : undefined}
+              onSelect={(range) => {
+                setStart(range?.from ? toIso(range.from) : "")
+                setEnd(range?.to ? toIso(range.to) : "")
+              }}
+            />
+            <div className="calendar-ok">
+              <button type="button" disabled={!start} onClick={() => setCalendarOpen(false)}>
+                OK
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="edit-field">
+        <span>Invite · {members.length} picked</span>
+        <ul className="member-list checks">
+          {people.map((id) => (
+            <CheckRow
+              key={id}
+              id={id}
+              on={members.includes(id)}
+              onClick={() => setMembers((list) => (list.includes(id) ? list.filter((item) => item !== id) : [...list, id]))}
+            />
+          ))}
+        </ul>
+      </div>
+      <Toolbar>
+        <button type="button" className="add-btn glass" onClick={create}>
+          Create trip
+        </button>
+      </Toolbar>
     </div>
   )
 }

@@ -1,12 +1,6 @@
 import type { CSSProperties, ReactNode } from "react"
 import { person } from "../state"
-import {
-  IconBack,
-  IconFriends,
-  IconGlobe,
-  IconNavSearch,
-  IconPassport,
-} from "./icons"
+import { IconBack } from "./icons"
 
 export function StatusBar({ light = false }: { light?: boolean }) {
   return (
@@ -90,46 +84,34 @@ export function Face({ id, size = 36 }: { id: string; size?: number }) {
 export function TabBar({
   tab,
   onTab,
-  onSearch,
+  onAdd,
 }: {
   tab: "trips" | "friends" | "passport"
   onTab: (tab: "trips" | "friends" | "passport") => void
-  onSearch: () => void
+  onAdd: () => void
 }) {
   return (
     <div className="tabbar">
       <div className="tab-pill glass">
-        <TabButton active={tab === "trips"} label="Trips" onClick={() => onTab("trips")}>
-          <IconGlobe active={tab === "trips"} />
-        </TabButton>
-        <TabButton active={tab === "friends"} label="Friends" onClick={() => onTab("friends")}>
-          <IconFriends active={tab === "friends"} />
-        </TabButton>
-        <TabButton active={tab === "passport"} label="Passport" onClick={() => onTab("passport")}>
-          <IconPassport active={tab === "passport"} />
-        </TabButton>
+        <TabButton active={tab === "trips"} label="Trips" icon="tab-trips" onClick={() => onTab("trips")} />
+        <TabButton active={tab === "friends"} label="Friends" icon="tab-friends" onClick={() => onTab("friends")} />
+        <TabButton active={tab === "passport"} label="Passport" icon="passport" onClick={() => onTab("passport")} />
       </div>
-      <button className="search-btn glass" type="button" aria-label="Search" onClick={onSearch}>
-        <IconNavSearch />
+      <button className="search-btn glass" type="button" aria-label="Add trip" onClick={onAdd}>
+        <TabIcon icon="tab-plus" />
       </button>
     </div>
   )
 }
 
-function TabButton({
-  active,
-  label,
-  onClick,
-  children,
-}: {
-  active: boolean
-  label: string
-  onClick: () => void
-  children: ReactNode
-}) {
+function TabIcon({ icon }: { icon: string }) {
+  return <i className="tab-icon" aria-hidden="true" style={{ "--icon": `url(/assets/icons/${icon}.svg)` } as CSSProperties} />
+}
+
+function TabButton({ active, label, icon, onClick }: { active: boolean; label: string; icon: string; onClick: () => void }) {
   return (
-    <button type="button" className={active ? "tab active" : "tab"} onClick={onClick}>
-      {children}
+    <button type="button" className={active ? "tab active" : "tab"} aria-current={active ? "page" : undefined} onClick={onClick}>
+      <TabIcon icon={icon} />
       <span>{label}</span>
     </button>
   )

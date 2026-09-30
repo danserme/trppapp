@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react"
-import { parsedTickets, tickets, trips, tripDays, type DayId, type Expense, type Poll, type Stop } from "../data"
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { isPastTrip, parsedTickets, pastExpenses, tickets, trips, tripDays, type DayId, type Expense, type Poll, type Stop } from "../data"
 import { PEEK, dayStops, isPastDay, person, place, tripRange, useStore } from "../state"
 import { FriendsPanel } from "./screens"
 import { PassportPanel } from "./Passport"
@@ -121,12 +121,33 @@ const tokyoDocs: Doc[] = [
   { id: "tk-pass", title: "Boarding pass", detail: "AMS → HND · 11 Nov 2026", kind: "ticket", overlay: "ticket", ticket: "tk-pass" },
 ]
 
-const tokyo = trips.find((trip) => trip.id === "tokyo")
+const pastDocs: Record<string, Doc[]> = {
+  amsterdam: [
+    { id: "am-concert", title: "Ziggo Dome tickets", detail: "Concert · 9 Mar 2025 · 4 tickets", kind: "ticket" },
+    { id: "am-train", title: "Rotterdam day return", detail: "NS train · 8 Mar 2025", kind: "ticket" },
+  ],
+  munich: [
+    { id: "mu-flight", title: "Boarding pass", detail: "AMS → MUC · 3 Aug 2026", kind: "ticket" },
+    { id: "mu-hotel", title: "Louis Hotel", detail: "Reservation · confirmation LH-5512", kind: "link" },
+    { id: "mu-train", title: "ICE to Berlin", detail: "MUC → BER · 7 Aug 2026", kind: "ticket" },
+    { id: "mu-home", title: "Boarding pass", detail: "BER → AMS · 12 Aug 2026", kind: "ticket" },
+  ],
+  porto: [
+    { id: "po-flight", title: "Boarding pass", detail: "AMS → OPO · 18 Sep 2026", kind: "ticket" },
+    { id: "po-hotel", title: "Torel Avantgarde", detail: "Reservation · confirmation TA-3190", kind: "link" },
+    { id: "po-douro", title: "Douro Valley tour", detail: "Booking · 20 Sep 2026 · 3 guests", kind: "file" },
+  ],
+  paris: [
+    { id: "pa-train", title: "Eurostar", detail: "AMS → PAR · 25 Sep 2026", kind: "ticket" },
+    { id: "pa-hotel", title: "Hotel des Grands Boulevards", detail: "Reservation · confirmation GB-8824", kind: "link" },
+  ],
+}
 
 function useTripHead() {
   const { state } = useStore()
-  return state.trip === "tokyo" && tokyo
-    ? { title: tokyo.title, dates: tokyo.dates, members: tokyo.people, extra: tokyo.extra + 2 - tokyo.people.length }
+  const trip = trips.find((item) => item.id === state.trip)
+  return state.trip !== "lisbon" && trip
+    ? { title: trip.title, dates: trip.dates, members: trip.people, extra: trip.extra + 2 - trip.people.length }
     : { title: state.tripTitle, dates: tripRange(state.tripStart, state.tripEnd), members: state.members, extra: 1 }
 }
 
@@ -139,13 +160,14 @@ function TripSheetBody() {
   const { state, dispatch } = useStore()
   const head = useTripHead()
   const future = state.trip === "tokyo"
-  const [docs, setDocs] = useState(future ? tokyoDocs : baseDocs)
+  const done = isPastTrip(state.trip)
+  const [docs, setDocs] = useState(future ? tokyoDocs : (pastDocs[state.trip] ?? baseDocs))
   const fileRef = useRef<HTMLInputElement>(null)
   const poll = state.pollByDay[state.day]
   const tab = state.tripTab
   const plans = dayStops(state.day)
   const plansRef = useRef<HTMLDivElement>(null)
-  const past = isPastDay(state.day)
+  const pastDay = isPastDay(state.day)
   useLayoutEffect(() => {
     const scroller = plansRef.current
     if (!scroller) return
@@ -163,7 +185,7 @@ function TripSheetBody() {
     const peek = current.matches(".pending") ? 20 : previous ? previous.offsetHeight * 0.75 + 44 : 0
     scroller.scrollTop = Math.max(0, top - peek)
   }, [state.day, tab, state.snap, poll?.question])
-  const gap = past ? undefined : plans.find((stop) => stop.kind === "gap")
+  const gap = pastDay ? undefined : plans.find((stop) => stop.kind === "gap")
   const addLabel = tab === "expenses" ? "Add expense" : tab === "docs" ? "Add document" : "Add to itinerary"
 
   function add() {
@@ -215,7 +237,14 @@ function TripSheetBody() {
                   )}
                 </div>
               )}
-              {tab === "expenses" && (future ? <p className="empty">No expenses yet. Add bills here once the trip starts.</p> : <Expenses />)}
+              {tab === "expenses" &&
+                (future ? (
+                  <p className="empty">No expenses yet. Bills show up here once the trip starts.</p>
+                ) : isPastTrip(state.trip) ? (
+                  <Expenses items={pastExpenses[state.trip]} settled />
+                ) : (
+                  <Expenses items={state.expenses} />
+                ))}
               {tab === "docs" && <Docs docs={docs} />}
             </div>
           </div>
@@ -250,18 +279,20 @@ function TripSheetBody() {
         <button type="button" className="glass-icon glass" aria-label="Back" onClick={() => dispatch({ type: "back" })}>
           <img className="asset" src="/assets/icons/back.svg" alt="" />
         </button>
+        {!done && (
         <div className="sheet-actions">
           {tab === "itinerary" && !future && (
             <button type="button" className="glass-icon glass" aria-label="Edit trip" onClick={() => dispatch({ type: "overlay", overlay: "edit" })}>
               <img className="asset" src="/assets/icons/pencil.svg" alt="" />
             </button>
           )}
-          {!(tab === "itinerary" && past) && (
+          {!(tab === "itinerary" && pastDay) && !(tab === "expenses" && future) && (
             <button type="button" className="add-btn glass" onClick={add}>
               <img className="asset" src="/assets/icons/plus.svg" alt="" /> {addLabel}
             </button>
           )}
         </div>
+        )}
       </footer>
     </div>
   )
@@ -325,8 +356,66 @@ function StopCard({ stop }: { stop: Stop }) {
 function DayStrip({ day, onPick }: { day: DayId; onPick: (day: DayId) => void }) {
   const { state } = useStore()
   const items = tripDays(state.trip)
+  const many = items.length > 4
+  const strip = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = strip.current
+    if (!el || !many) return
+    const step = () => el.querySelector<HTMLElement>(".day")?.offsetWidth || el.clientWidth / 4
+    let resnap = 0
+    const glide = (index: number) => {
+      el.style.scrollSnapType = "none"
+      window.clearTimeout(resnap)
+      resnap = window.setTimeout(() => (el.style.scrollSnapType = ""), 700)
+      el.scrollTo({ left: index * step(), behavior: "smooth" })
+    }
+    let wheelLock = 0
+    const onWheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return
+      event.preventDefault()
+      if (event.timeStamp < wheelLock) return
+      wheelLock = event.timeStamp + 260
+      glide(Math.round(el.scrollLeft / step()) + Math.sign(event.deltaY))
+    }
+    const onDown = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse" || event.button !== 0) return
+      const startX = event.clientX
+      const startLeft = el.scrollLeft
+      let moved = false
+      el.style.scrollSnapType = "none"
+      const onMove = (move: PointerEvent) => {
+        const dx = move.clientX - startX
+        if (Math.abs(dx) > 4) moved = true
+        el.scrollLeft = startLeft - dx
+      }
+      const onUp = (up: PointerEvent) => {
+        window.removeEventListener("pointermove", onMove)
+        window.removeEventListener("pointerup", onUp)
+        const dx = up.clientX - startX
+        const from = startLeft / step()
+        const flick = Math.abs(dx) > step() * 0.2 ? -Math.sign(dx) : 0
+        glide(flick ? Math.round(from - dx / step() + flick * 0.3) : Math.round(el.scrollLeft / step()))
+        if (!moved) return
+        const swallow = (click: MouseEvent) => {
+          click.stopPropagation()
+          click.preventDefault()
+        }
+        el.addEventListener("click", swallow, { capture: true, once: true })
+        window.setTimeout(() => el.removeEventListener("click", swallow, { capture: true }), 0)
+      }
+      window.addEventListener("pointermove", onMove)
+      window.addEventListener("pointerup", onUp)
+    }
+    el.addEventListener("wheel", onWheel, { passive: false })
+    el.addEventListener("pointerdown", onDown)
+    return () => {
+      window.clearTimeout(resnap)
+      el.removeEventListener("wheel", onWheel)
+      el.removeEventListener("pointerdown", onDown)
+    }
+  }, [many])
   return (
-    <div className="days">
+    <div ref={strip} className={many ? "days many" : "days"} style={{ "--n": items.length } as CSSProperties} data-vaul-no-drag>
       <DaySegments fills={items.map((item) => item.progress)} />
       <div className="day-row">
         {items.map((item) => (
@@ -360,7 +449,7 @@ function PollCard() {
           id: "poll-result",
           time: `${poll.from}–${poll.to}`,
           tone: "muted",
-          status: top.votes.length > 0 ? "voted" : "planned",
+          status: poll.status ?? (top.votes.length > 0 ? "voted" : "planned"),
           title: name,
           people: top.votes.length > 0 ? top.votes : ["ari"],
           kind: "food",
@@ -469,12 +558,11 @@ function payer(item: Expense) {
   return item.paidBy === "you" ? "you" : (person(item.paidBy)?.name.split(" ")[0] ?? item.paidBy)
 }
 
-function Expenses() {
+function Expenses({ items: all, settled = false }: { items: Expense[]; settled?: boolean }) {
   const { state, dispatch } = useStore()
   const [filter, setFilter] = useState<ExpenseFilter>("all")
   const [sort, setSort] = useState<ExpenseSort>("recent")
   const [menu, setMenu] = useState<"filter" | "sort" | null>(null)
-  const all = state.expenses
   const total = all.reduce((sum, item) => sum + item.amount, 0)
   const mine = all.filter((item) => item.paidBy === "you").reduce((sum, item) => sum + item.amount, 0)
   const visible = all
@@ -492,13 +580,24 @@ function Expenses() {
   return (
     <div className="expenses">
       <div className="owed">
-        <p>You are owed by {state.summary.owedBy.length} people</p>
-        <div className="owed-row">
-          <strong>{state.summary.owed} €</strong>
-          <button type="button" onClick={() => dispatch({ type: "sheet", sheet: "balances" })}>
-            Balances <IconChevron />
-          </button>
-        </div>
+        {settled ? (
+          <>
+            <p>Your share · all settled up</p>
+            <div className="owed-row">
+              <strong>{Math.round(all.reduce((sum, item) => sum + item.amount / item.split, 0))} €</strong>
+            </div>
+          </>
+        ) : (
+          <>
+            <p>You are owed by {state.summary.owedBy.length} people</p>
+            <div className="owed-row">
+              <strong>{state.summary.owed} €</strong>
+              <button type="button" onClick={() => dispatch({ type: "sheet", sheet: "balances" })}>
+                Balances <IconChevron />
+              </button>
+            </div>
+          </>
+        )}
         <div className="stats">
           <span>
             <small>Group total</small>
@@ -619,7 +718,7 @@ function Docs({ docs }: { docs: Doc[] }) {
 }
 
 function GroupSheet() {
-  const { dispatch } = useStore()
+  const { state, dispatch } = useStore()
   const head = useTripHead()
   return (
     <div className="sheet group">
@@ -646,9 +745,11 @@ function GroupSheet() {
         <button type="button" className="glass-icon glass" aria-label="Back" onClick={() => dispatch({ type: "back" })}>
           <img className="asset" src="/assets/icons/back.svg" alt="" />
         </button>
-        <button type="button" className="add-btn glass" onClick={() => dispatch({ type: "overlay", overlay: "invite" })}>
-          <IconPlus /> Add members
-        </button>
+        {!isPastTrip(state.trip) && (
+          <button type="button" className="add-btn glass" onClick={() => dispatch({ type: "overlay", overlay: "invite" })}>
+            <IconPlus /> Add members
+          </button>
+        )}
       </footer>
     </div>
   )

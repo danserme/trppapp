@@ -17,12 +17,15 @@ import {
   people,
   savedPlaces,
   stops,
+  pastDays,
   tokyoDays,
+  tripDays,
   tuesdayPoll,
   type DayId,
   type Expense,
   type Poll,
   type PollOption,
+  type Trip,
   type TripId,
 } from "./data"
 import { daylight, type Palette } from "./mapStyle"
@@ -42,7 +45,7 @@ type Overlay =
   | "search"
   | "style"
   | "edit"
-  | "tokyo"
+  | "new-trip"
 
 export const PEEK = 0.36
 export const MID = 0.56
@@ -89,6 +92,8 @@ type State = {
   ticket: string
   pollLive: DayId | null
   trip: TripId
+  tripBack: Mode
+  createdTrips: Trip[]
 }
 
 const initial: State = {
@@ -131,6 +136,8 @@ const initial: State = {
   ticket: "pass",
   pollLive: null,
   trip: "lisbon",
+  tripBack: "map",
+  createdTrips: [],
 }
 
 type Action =
@@ -166,6 +173,7 @@ type Action =
   | { type: "save-bill" }
   | { type: "toast"; toast: string | null; tone?: "info" | "error" }
   | { type: "locate" }
+  | { type: "create-trip"; trip: Trip }
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -193,7 +201,8 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         trip,
-        day: trip === state.trip ? state.day : trip === "tokyo" ? "tk1" : TODAY,
+        day: trip === state.trip ? state.day : trip === "lisbon" ? TODAY : tripDays(trip)[0].id,
+        tripBack: state.tab === "trips" ? state.mode : "map",
         stamp: null,
         gallery: false,
         tab: "trips",
@@ -211,7 +220,7 @@ function reducer(state: State, action: Action): State {
       if (state.overlay) return { ...state, overlay: null, splitOpen: false }
       if (state.sheet === "balances") return { ...state, sheet: "trip", tripTab: "expenses" }
       if (state.sheet !== "trip") return { ...state, sheet: "trip" }
-      return { ...state, snap: PEEK, trip: "lisbon", day: state.trip === "lisbon" ? state.day : TODAY }
+      return { ...state, snap: PEEK, mode: state.tripBack, tripBack: "map", trip: "lisbon", day: state.trip === "lisbon" ? state.day : TODAY }
     case "sheet":
       return { ...state, sheet: action.sheet, snap: OPEN }
     case "trip-tab":
@@ -393,6 +402,18 @@ function reducer(state: State, action: Action): State {
         : { ...state, launched: true, trip: "lisbon", tab: "trips", mode: "map", snap: PEEK }
     case "home":
       return { ...state, launched: false, overlay: null, splitOpen: false, sheet: "trip", toast: null }
+    case "create-trip":
+      return {
+        ...state,
+        createdTrips: [...state.createdTrips, action.trip],
+        overlay: null,
+        tab: "trips",
+        mode: "list",
+        filter: "all",
+        snap: PEEK,
+        toastTone: "info",
+        toast: action.trip.people.length > 0 ? `${action.trip.title} created. Invites sent.` : `${action.trip.title} created.`,
+      }
     case "locate":
       return { ...state, locateTick: state.locateTick + 1 }
     default:
@@ -444,7 +465,7 @@ export function place(id: string) {
 }
 
 export function dayStops(day: DayId) {
-  return stops[day]
+  return stops[day] ?? []
 }
 
 export const TODAY: DayId = "tue" as DayId
@@ -460,13 +481,16 @@ export function tripRange(start: string, end: string) {
   return `${shortDate(start)} – ${shortDate(end)}, ${end.slice(0, 4)}`
 }
 
+const pastDayIds = new Set(Object.values(pastDays).flatMap((list) => list.map((item) => item.id)))
+
 export function isPastDay(day: DayId) {
+  if (pastDayIds.has(day)) return true
   const index = days.findIndex((item) => item.id === day)
   return index >= 0 && index < days.findIndex((item) => item.id === TODAY)
 }
 
 export function dayMeta(day: DayId) {
-  return [...days, ...tokyoDays].find((item) => item.id === day) ?? days[1]
+  return [...days, ...tokyoDays, ...Object.values(pastDays).flat()].find((item) => item.id === day) ?? days[1]
 }
 
 export { friends }

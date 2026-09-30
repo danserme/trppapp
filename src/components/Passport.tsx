@@ -25,6 +25,8 @@ export function StampArt({ stamp, photo, className = "", style }: { stamp: Stamp
   )
 }
 
+const tripCovers = trips.flatMap((trip) => passportStamps.filter((stamp) => stamp.id === trip.stampIds[0]))
+
 export function PassportPanel() {
   const { dispatch } = useStore()
   const [all, setAll] = useState(false)
@@ -40,21 +42,21 @@ export function PassportPanel() {
             <em>Explorer Lv4</em>
           </p>
         </div>
-        <button type="button" className="pass-share" aria-label="Share passport" onClick={() => dispatch({ type: "toast", toast: "Passport link copied." })}>
-          <img className="asset" src="/assets/passport/share.svg" alt="" />
+        <button type="button" className="pass-share" aria-label="Edit passport" onClick={() => dispatch({ type: "toast", toast: "Nice try! This passport is demo-only, so no forged stamps today." })}>
+          <img className="asset" src="/assets/icons/pencil.svg" alt="" />
         </button>
       </header>
       <dl className="pass-numbers">
         <div>
-          <dd>3</dd>
+          <dd>4</dd>
           <dt>Countries</dt>
         </div>
         <div>
-          <dd>6</dd>
+          <dd>7</dd>
           <dt>Cities</dt>
         </div>
         <div>
-          <dd>18</dd>
+          <dd>21</dd>
           <dt>Nights away</dt>
         </div>
       </dl>
@@ -78,11 +80,11 @@ export function PassportPanel() {
       <div className="stamps-head">
         <h2>Stamps created</h2>
         <button type="button" onClick={() => setAll((open) => !open)}>
-          {all ? "Show less" : "View all"}
+          {all ? "Collapse" : "Expand"}
         </button>
       </div>
       <div className={all ? "stamp-strip all" : "stamp-strip"} data-vaul-no-drag>
-        {passportStamps.map((stamp) => (
+        {tripCovers.map((stamp) => (
           <button
             key={stamp.id}
             type="button"
@@ -92,11 +94,15 @@ export function PassportPanel() {
             onClick={() => dispatch({ type: "stamp", id: stamp.id })}
           >
             <StampArt stamp={stamp} />
-            {all && <span className="stamp-city">{stamp.city}</span>}
           </button>
         ))}
-        <button type="button" className="add-stamp" aria-label="Create a stamp" onClick={() => dispatch({ type: "toast", toast: "Stamps unlock when a trip ends." })}>
-          <img src="/assets/passport/add-stamp.svg" alt="" />
+        <button type="button" className="future-stamp" aria-label="Tokyo stamp, revealing soon" onClick={() => dispatch({ type: "toast", toast: "Your Tokyo stamp reveals when the trip ends." })}>
+          <span className="stamp-art">
+            <span className="stamp-blank" />
+            <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
+            <span className="stamp-title">Tokyo</span>
+            <span className="stamp-soon">revealing soon</span>
+          </span>
         </button>
       </div>
     </div>
@@ -113,7 +119,7 @@ export function StampViewer() {
 
 function StampStage({ stamp }: { stamp: Stamp }) {
   const { dispatch } = useStore()
-  const { photos } = useStampLook(stamp)
+  const { photos, title } = useStampLook(stamp)
   const [turn, setTurn] = useState({ y: 0, x: 0 })
   const [dragging, setDragging] = useState(false)
   const drag = useRef<{ x: number; y: number; from: number; lastX: number; lastT: number; speed: number; moved: boolean } | null>(null)
@@ -177,7 +183,7 @@ function StampStage({ stamp }: { stamp: Stamp }) {
             </span>
             <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
             <span className="stamp-back-head">
-              <strong>{stamp.city}</strong>
+              <strong>{title}</strong>
               <em>
                 {stamp.date} · {stamp.photos.length} photos
               </em>
