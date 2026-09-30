@@ -1033,6 +1033,10 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .peek-card .segments,
 .days .segments { width: 100%; }
 .trip-card-main { width: 100%; text-align: left; }
+.trip-card.past { transition: transform 0.15s ease-out; }
+.trip-card.past .trip-card-main:active { transform: none; }
+.trip-card.past:has(.trip-card-main:active) { transform: scale(0.98); }
+.trip-card.past .trip-card-main::after { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; }
 .stamp-row {
   position: absolute;
   right: 2px;

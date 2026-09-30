@@ -287,12 +287,12 @@ function TripSheetBody() {
     scroller.scrollTop = Math.max(0, top - peek)
   }, [state.day, tab, state.snap, poll?.question])
   const gap = pastDay ? undefined : plans.find((stop) => stop.kind === "gap")
-  const addLabel = tab === "expenses" ? "Add expense" : tab === "docs" ? "Add document" : tab === "photos" ? "Add photo" : "Add to itinerary"
+  const addLabel = done || tab === "photos" ? "Add photo" : tab === "expenses" ? "Add expense" : tab === "docs" ? "Add document" : "Add to itinerary"
 
   function add() {
-    if (tab === "expenses") dispatch({ type: "overlay", overlay: "bill" })
+    if (done || tab === "photos") photoRef.current?.click()
+    else if (tab === "expenses") dispatch({ type: "overlay", overlay: "bill" })
     else if (tab === "docs") fileRef.current?.click()
-    else if (tab === "photos") photoRef.current?.click()
     else dispatch({ type: "overlay", overlay: "poll", anchor: gap?.id ?? null, voting: false })
   }
 
@@ -308,6 +308,7 @@ function TripSheetBody() {
       if (typeof reader.result !== "string") return
       const id = `up-${Date.now()}`
       dispatch({ type: "add-photo", photo: { id, src: reader.result, by: "ari", day, stampId } })
+      if (tab !== "photos") dispatch({ type: "trip-tab", tab: "photos" })
       setOpenPhoto(id)
     }
     reader.readAsDataURL(file)
@@ -415,20 +416,18 @@ function TripSheetBody() {
         <button type="button" className="glass-icon glass" aria-label="Back" onClick={() => dispatch({ type: "back" })}>
           <img className="asset" src="/assets/icons/back.svg" alt="" />
         </button>
-        {!done && (
         <div className="sheet-actions">
-          {tab === "itinerary" && !future && (
+          {tab === "itinerary" && !future && !done && (
             <button type="button" className="glass-icon glass" aria-label="Edit trip" onClick={() => dispatch({ type: "overlay", overlay: "edit" })}>
               <img className="asset" src="/assets/icons/pencil.svg" alt="" />
             </button>
           )}
-          {!(tab === "itinerary" && pastDay) && !(tab === "expenses" && future) && !(tab === "photos" && future) && (
+          {(done || (!(tab === "itinerary" && pastDay) && !(tab === "expenses" && future) && !(tab === "photos" && future))) && (
             <button type="button" className="add-btn glass" onClick={add}>
               <img className="asset" src="/assets/icons/plus.svg" alt="" /> {addLabel}
             </button>
           )}
         </div>
-        )}
       </footer>
     </div>
   )
