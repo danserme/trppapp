@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
-import { isPastTrip, parsedTickets, pastExpenses, tickets, trips, tripDays, type DayId, type Expense, type Poll, type Stop } from "../data"
-import { PEEK, dayStops, isPastDay, person, place, tripRange, useStore } from "../state"
+import { isPastTrip, parsedTickets, passportStamps, pastExpenses, tickets, trips, tripDays, type DayId, type Expense, type Poll, type SharedPhoto, type Stop } from "../data"
+import { PEEK, TODAY, dayStops, isPastDay, person, place, tripRange, useStore } from "../state"
 import { FriendsPanel } from "./screens"
 import { PassportPanel } from "./Passport"
 import { DaySegments, Face, PhotoStack } from "./chrome"
@@ -63,10 +63,109 @@ function PeekCard() {
   const { dispatch } = useStore()
   return (
     <div className="peek-wrap">
-      <button type="button" className="locate peek-locate glass" aria-label="Locate" onClick={() => dispatch({ type: "locate" })}>
-        <IconLocate />
-      </button>
+      <div className="peek-tools">
+        <PhotoShortcut />
+        <button type="button" className="locate peek-locate glass" aria-label="Locate" onClick={() => dispatch({ type: "locate" })}>
+          <IconLocate />
+        </button>
+      </div>
       <CurrentTripCard />
+    </div>
+  )
+}
+
+const cameraRoll = [
+  "/assets/food/elevada.jpg",
+  "/assets/trips/lisbon-tram.jpg",
+  "/assets/food/spiga.jpg",
+  "/assets/passport/lisbon.jpg",
+  "/assets/food/ribatejo.jpg",
+]
+
+function PhotoShortcut() {
+  const { dispatch } = useStore()
+  const [tray, setTray] = useState<"closed" | "open" | "closing">("closed")
+  const root = useRef<HTMLDivElement>(null)
+  const input = useRef<HTMLInputElement>(null)
+  const open = tray === "open"
+  const close = () => setTray((current) => (current === "open" ? "closing" : current))
+
+  useEffect(() => {
+    if (!open) return
+    const outside = (event: globalThis.PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) close()
+    }
+    document.addEventListener("pointerdown", outside)
+    return () => document.removeEventListener("pointerdown", outside)
+  }, [open])
+
+  function share(src: string) {
+    const id = `up-${Date.now()}`
+    dispatch({ type: "add-photo", photo: { id, src, by: "ari", day: TODAY, stampId: "lisbon" } })
+    close()
+  }
+
+  return (
+    <div className="peek-photos" ref={root}>
+      {tray !== "closed" && (
+        <div
+          className={tray === "closing" ? "peek-photo-tray closing" : "peek-photo-tray"}
+          role="menu"
+          aria-label="Recent photos"
+          style={{ "--n": cameraRoll.length + 1 } as CSSProperties}
+          onAnimationEnd={(event) => {
+            if (tray === "closing" && event.target === event.currentTarget.firstElementChild) setTray("closed")
+          }}
+        >
+          {cameraRoll.map((src, index) => (
+            <button key={src} type="button" role="menuitem" aria-label="Share this photo" tabIndex={open ? 0 : -1} style={{ "--i": index } as CSSProperties} onClick={() => share(src)}>
+              <img src={src} alt="" draggable={false} />
+            </button>
+          ))}
+          <button
+            type="button"
+            role="menuitem"
+            className="peek-photo-all"
+            aria-label="All photos"
+            tabIndex={open ? 0 : -1}
+            style={{ "--i": cameraRoll.length } as CSSProperties}
+            onClick={() => {
+              close()
+              input.current?.click()
+            }}
+          >
+            <img className="asset" src="/assets/icons/image.svg" alt="" />
+            All
+          </button>
+        </div>
+      )}
+      <button
+        type="button"
+        className="glass-icon glass peek-photos-btn"
+        aria-label="Share a photo"
+        aria-expanded={open}
+        onClick={() => (open ? close() : setTray("open"))}
+      >
+        <img className="asset" src="/assets/icons/photo-shortcut.svg" alt="" draggable={false} />
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          event.target.value = ""
+          if (!file) return
+          if (!file.type.startsWith("image/")) {
+            dispatch({ type: "toast", toast: "Choose a photo to share.", tone: "error" })
+            return
+          }
+          const reader = new FileReader()
+          reader.onload = () => typeof reader.result === "string" && share(reader.result)
+          reader.readAsDataURL(file)
+        }}
+      />
     </div>
   )
 }
@@ -162,7 +261,9 @@ function TripSheetBody() {
   const future = state.trip === "tokyo"
   const done = isPastTrip(state.trip)
   const [docs, setDocs] = useState(future ? tokyoDocs : (pastDocs[state.trip] ?? baseDocs))
+  const [openPhoto, setOpenPhoto] = useState<string | null>(state.openPhoto)
   const fileRef = useRef<HTMLInputElement>(null)
+  const photoRef = useRef<HTMLInputElement>(null)
   const poll = state.pollByDay[state.day]
   const tab = state.tripTab
   const plans = dayStops(state.day)
@@ -186,12 +287,30 @@ function TripSheetBody() {
     scroller.scrollTop = Math.max(0, top - peek)
   }, [state.day, tab, state.snap, poll?.question])
   const gap = pastDay ? undefined : plans.find((stop) => stop.kind === "gap")
-  const addLabel = tab === "expenses" ? "Add expense" : tab === "docs" ? "Add document" : "Add to itinerary"
+  const addLabel = tab === "expenses" ? "Add expense" : tab === "docs" ? "Add document" : tab === "photos" ? "Add photo" : "Add to itinerary"
 
   function add() {
     if (tab === "expenses") dispatch({ type: "overlay", overlay: "bill" })
     else if (tab === "docs") fileRef.current?.click()
+    else if (tab === "photos") photoRef.current?.click()
     else dispatch({ type: "overlay", overlay: "poll", anchor: gap?.id ?? null, voting: false })
+  }
+
+  function sharePhoto(file: File) {
+    if (!file.type.startsWith("image/")) {
+      dispatch({ type: "toast", toast: "Choose a photo to share.", tone: "error" })
+      return
+    }
+    const day = state.day
+    const stampId = trips.find((item) => item.id === state.trip)?.stampIds[0] ?? null
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result !== "string") return
+      const id = `up-${Date.now()}`
+      dispatch({ type: "add-photo", photo: { id, src: reader.result, by: "ari", day, stampId } })
+      setOpenPhoto(id)
+    }
+    reader.readAsDataURL(file)
   }
 
   return (
@@ -211,14 +330,14 @@ function TripSheetBody() {
         </div>
         <div className="itinerary-main">
           <div className="seg">
-            {(["itinerary", "expenses", "docs"] as const).map((item) => (
+            {(["itinerary", "expenses", "docs", "photos"] as const).map((item) => (
               <button key={item} type="button" className={tab === item ? "on" : ""} onClick={() => dispatch({ type: "trip-tab", tab: item })}>
                 {item[0].toUpperCase() + item.slice(1)}
               </button>
             ))}
           </div>
           <div className="day-and-plans">
-            {tab === "itinerary" && <DayStrip day={state.day} onPick={(day) => dispatch({ type: "day", day })} />}
+            {(tab === "itinerary" || (tab === "photos" && !future)) && <DayStrip day={state.day} onPick={(day) => dispatch({ type: "day", day })} />}
             <div className={tab === "docs" ? "plans" : "plans masked"} ref={plansRef} data-vaul-no-drag>
               {tab === "itinerary" && (
                 <div className="cards">
@@ -246,6 +365,12 @@ function TripSheetBody() {
                   <Expenses items={state.expenses} />
                 ))}
               {tab === "docs" && <Docs docs={docs} />}
+              {tab === "photos" &&
+                (future ? (
+                  <p className="album-empty">No photos yet. The album opens when the trip starts.</p>
+                ) : (
+                  <Album day={state.day} openId={openPhoto} onOpen={setOpenPhoto} />
+                ))}
             </div>
           </div>
         </div>
@@ -275,6 +400,17 @@ function TripSheetBody() {
           event.target.value = ""
         }}
       />
+      <input
+        ref={photoRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          if (file) sharePhoto(file)
+          event.target.value = ""
+        }}
+      />
       <footer className="sheet-bar">
         <button type="button" className="glass-icon glass" aria-label="Back" onClick={() => dispatch({ type: "back" })}>
           <img className="asset" src="/assets/icons/back.svg" alt="" />
@@ -286,7 +422,7 @@ function TripSheetBody() {
               <img className="asset" src="/assets/icons/pencil.svg" alt="" />
             </button>
           )}
-          {!(tab === "itinerary" && pastDay) && !(tab === "expenses" && future) && (
+          {!(tab === "itinerary" && pastDay) && !(tab === "expenses" && future) && !(tab === "photos" && future) && (
             <button type="button" className="add-btn glass" onClick={add}>
               <img className="asset" src="/assets/icons/plus.svg" alt="" /> {addLabel}
             </button>
@@ -689,6 +825,71 @@ function Expenses({ items: all, settled = false }: { items: Expense[]; settled?:
         </section>
       ))}
     </div>
+  )
+}
+
+function Album({ day, openId, onOpen }: { day: DayId; openId: string | null; onOpen: (id: string | null) => void }) {
+  const { state } = useStore()
+  const items = state.photos.filter((photo) => photo.day === day)
+  const open = items.find((photo) => photo.id === openId)
+  if (open) return <PhotoView photo={open} onClose={() => onOpen(null)} />
+  if (items.length === 0) return <p className="album-empty">No photos from this day yet. Add one and everyone on the trip can see it.</p>
+  return (
+    <div className="album">
+      {items.map((photo) => {
+        const who = person(photo.by)
+        return (
+          <button key={photo.id} type="button" className="album-shot" aria-label={who ? `${who.name}'s photo` : "Trip photo"} onClick={() => onOpen(photo.id)}>
+            <img src={photo.src} alt="" />
+            <Face id={photo.by} size={22} />
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function PhotoView({ photo, onClose }: { photo: SharedPhoto; onClose: () => void }) {
+  const { state, dispatch } = useStore()
+  const who = person(photo.by)
+  const stamp = passportStamps.find((item) => item.id === photo.stampId)
+  const cover = stamp ? (state.stampCovers[stamp.id] ?? stamp.image) : null
+  const chosen = cover === photo.src
+  return (
+    <div className="photo-view">
+      <button type="button" className="photo-back" onClick={onClose}>
+        All photos
+      </button>
+      <div className="photo-frame">
+        <img src={photo.src} alt="" />
+        <div className="photo-meta">
+          <Face id={photo.by} size={32} />
+          <span>
+            <strong>{who?.name ?? "Someone"}</strong>
+            <em>Shared with the group</em>
+          </span>
+          {stamp && (
+            <button
+              type="button"
+              className={chosen ? "like on" : "like"}
+              aria-pressed={chosen}
+              aria-label={chosen ? "Stamp photo" : "Use as stamp photo"}
+              onClick={() => !chosen && dispatch({ type: "stamp-cover", id: stamp.id, src: photo.src })}
+            >
+              <Heart />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Heart() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 20.3s-7.6-4.6-9.2-9.3C1.7 7.6 3.9 4.4 7.3 4.4c2 0 3.6 1.1 4.7 2.7 1.1-1.6 2.7-2.7 4.7-2.7 3.4 0 5.6 3.2 4.5 6.6-1.6 4.7-9.2 9.3-9.2 9.3Z" />
+    </svg>
   )
 }
 

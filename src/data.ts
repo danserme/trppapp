@@ -563,6 +563,47 @@ export const passportStamps: Stamp[] = [
   { id: "lisbon", city: "Lisbon", country: "Portugal", date: "Oct 2026", coord: [-9.1393, 38.7223], tilt: 1.73, image: cityPhoto, photos: lisbonPhotos },
 ]
 
+export const stampYear = (stamp: Stamp) => Number(stamp.date.slice(-4))
+export const tripYear = (trip: Trip) => Number(trip.dates.slice(-4))
+export const inYear = (value: number, year: number | "all") => year === "all" || value === year
+
+export type SharedPhoto = {
+  id: string
+  src: string
+  by: string
+  day: DayId
+  stampId: string | null
+}
+
+const shared = (id: string, src: string, by: string, day: DayId, stampId: string): SharedPhoto => ({ id, src, by, day, stampId })
+
+export const sharedPhotos: SharedPhoto[] = [
+  shared("lx-city", cityPhoto, "ari", "mon", "lisbon"),
+  shared("lx-tram", shot("lisbon-tram"), "ben", "mon", "lisbon"),
+  shared("lx-hotel", "/assets/hotel-baixa.png", "john", "tue", "lisbon"),
+  shared("lx-elevada", "/assets/food/elevada.jpg", "irene", "tue", "lisbon"),
+  shared("lx-spiga", "/assets/food/spiga.jpg", "menta", "wed", "lisbon"),
+  shared("lx-ribatejo", "/assets/food/ribatejo.jpg", "ari", "wed", "lisbon"),
+  shared("am-rotterdam", shot("rotterdam-1"), "john", "am1", "rotterdam"),
+  shared("am-canal", shot("amsterdam-1"), "ben", "am2", "amsterdam"),
+  shared("am-night", shot("amsterdam-2"), "irene", "am3", "amsterdam"),
+  shared("mu-old", shot("munich-1"), "john", "mu2", "munich"),
+  shared("mu-park", shot("munich-2"), "ben", "mu3", "munich"),
+  shared("be-gate", shot("berlin-1"), "john", "mu6", "berlin"),
+  shared("be-river", shot("berlin-2"), "ben", "mu8", "berlin"),
+  shared("po-river", shot("porto-1"), "irene", "po1", "porto"),
+  shared("po-tiles", shot("porto-2"), "menta", "po2", "porto"),
+  shared("pa-street", shot("paris-1"), "martina", "pa1", "paris"),
+  shared("pa-seine", shot("paris-2"), "maria", "pa2", "paris"),
+]
+
+export function photosForStamp(stamp: Stamp, sharedAlbum: SharedPhoto[]) {
+  const extra = sharedAlbum
+    .filter((item) => item.stampId === stamp.id && item.src !== stamp.image && !stamp.photos.includes(item.src))
+    .map((item) => item.src)
+  return [...new Set([...extra, ...stamp.photos])]
+}
+
 type LngLat = [number, number]
 type RouteData = {
   order: string[]

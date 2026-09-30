@@ -75,10 +75,11 @@ function Phone() {
   const { state, dispatch, screen, setScreen } = useStore()
   const [yearsOpen, setYearsOpen] = useState(false)
   const [tripsInView, setTripsInView] = useState(0)
-  const showYears = tripsInView > 1 || state.year !== "all"
   const showMap = state.mode === "map"
   const drawerExpanded = state.tab !== "trips" || state.snap !== PEEK
   const showChrome = showMap && state.tab === "trips" && state.snap === PEEK
+  const onPassport = showMap && state.tab === "passport" && !state.stamp
+  const showYears = onPassport || (showChrome && (tripsInView > 1 || state.year !== "all"))
   const fullPage =
     state.overlay === "invite" ||
     state.overlay === "bill" ||
@@ -144,7 +145,7 @@ function Phone() {
         <MapView
           palette={state.palette}
           locateTick={state.locateTick}
-          showRoute={state.year === "all" || state.year === 2026}
+          year={state.year}
           sheetTop={camera.sheetTop}
           focus={camera.focus}
           highlight={camera.highlight}
@@ -161,37 +162,35 @@ function Phone() {
         />
       )}
       <StatusBar />
+      {showYears && (
+        <button type="button" className="map-btn left glass" aria-label="Years" aria-expanded={yearsOpen} onClick={() => setYearsOpen((open) => !open)}>
+          <IconSliders />
+        </button>
+      )}
+      {showYears && yearsOpen && (
+        <div className="year-filters glass">
+          {(["All", 2025, 2026, 2027] as const).map((year) => {
+            const value = year === "All" ? "all" : year
+            return (
+              <button
+                key={year}
+                type="button"
+                className={state.year === value ? "on" : ""}
+                onClick={() => {
+                  dispatch({ type: "year", year: value })
+                  setYearsOpen(false)
+                }}
+              >
+                {year}
+              </button>
+            )
+          })}
+        </div>
+      )}
       {showChrome && (
-        <>
-          {showYears && (
-            <button type="button" className="map-btn left glass" aria-label="Years" aria-expanded={yearsOpen} onClick={() => setYearsOpen((open) => !open)}>
-              <IconSliders />
-            </button>
-          )}
-          {showYears && yearsOpen && (
-            <div className="year-filters glass">
-              {(["All", 2025, 2026, 2027] as const).map((year) => {
-                const value = year === "All" ? "all" : year
-                return (
-                  <button
-                    key={year}
-                    type="button"
-                    className={state.year === value ? "on" : ""}
-                    onClick={() => {
-                      dispatch({ type: "year", year: value })
-                      setYearsOpen(false)
-                    }}
-                  >
-                    {year}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-          <button type="button" className="map-btn right glass" aria-label="Show trips as list" onClick={() => dispatch({ type: "mode", mode: "list" })}>
-            <IconMap />
-          </button>
-        </>
+        <button type="button" className="map-btn right glass" aria-label="Show trips as list" onClick={() => dispatch({ type: "mode", mode: "list" })}>
+          <IconMap />
+        </button>
       )}
       {state.tab === "trips" && state.mode === "list" && <TripList />}
 

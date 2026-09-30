@@ -18,6 +18,7 @@ import {
   savedPlaces,
   stops,
   pastDays,
+  sharedPhotos,
   tokyoDays,
   tripDays,
   tuesdayPoll,
@@ -25,6 +26,7 @@ import {
   type Expense,
   type Poll,
   type PollOption,
+  type SharedPhoto,
   type Trip,
   type TripId,
 } from "./data"
@@ -34,7 +36,7 @@ type Tab = "trips" | "friends" | "passport"
 type Mode = "map" | "list"
 type Filter = "all" | "past" | "upcoming"
 type Sheet = "trip" | "group" | "balances"
-type TripTab = "itinerary" | "expenses" | "docs"
+type TripTab = "itinerary" | "expenses" | "docs" | "photos"
 type Overlay =
   | null
   | "invite"
@@ -89,6 +91,8 @@ type State = {
   stamp: string | null
   gallery: boolean
   stampCovers: Record<string, string>
+  photos: SharedPhoto[]
+  openPhoto: string | null
   ticket: string
   pollLive: DayId | null
   trip: TripId
@@ -133,6 +137,8 @@ const initial: State = {
   stamp: null,
   gallery: false,
   stampCovers: {},
+  photos: sharedPhotos,
+  openPhoto: null,
   ticket: "pass",
   pollLive: null,
   trip: "lisbon",
@@ -166,7 +172,7 @@ type Action =
   | { type: "stamp"; id: string | null }
   | { type: "gallery"; open: boolean }
   | { type: "stamp-cover"; id: string; src: string }
-  | { type: "sim-vote" }
+  | { type: "add-photo"; photo: SharedPhoto }  | { type: "sim-vote" }
   | { type: "search"; search: string }
   | { type: "bill"; patch: Partial<Pick<State, "billAmount" | "billPlace" | "billDate" | "billPayer">> }
   | { type: "toggle-split"; id: string }
@@ -195,7 +201,12 @@ function reducer(state: State, action: Action): State {
     case "snap":
       return { ...state, snap: action.snap }
     case "year":
-      return { ...state, year: action.year }
+      return {
+        ...state,
+        year: action.year,
+        toast: action.year === 2027 ? "No trips in 2027." : null,
+        toastTone: "info",
+      }
     case "open-trip": {
       const trip = action.trip ?? "lisbon"
       return {
@@ -203,6 +214,7 @@ function reducer(state: State, action: Action): State {
         trip,
         day: trip === state.trip ? state.day : trip === "lisbon" ? TODAY : tripDays(trip)[0].id,
         tripBack: state.tab === "trips" ? state.mode : "map",
+        openPhoto: null,
         stamp: null,
         gallery: false,
         tab: "trips",
@@ -360,6 +372,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, gallery: action.open }
     case "stamp-cover":
       return { ...state, stampCovers: { ...state.stampCovers, [action.id]: action.src }, toast: "Stamp photo updated.", toastTone: "info" }
+    case "add-photo":
+      return { ...state, photos: [action.photo, ...state.photos], toast: "Photo shared with the group.", toastTone: "info" }
     case "search":
       return { ...state, search: action.search }
     case "bill":
@@ -396,10 +410,21 @@ function reducer(state: State, action: Action): State {
     }
     case "toast":
       return { ...state, toast: action.toast, toastTone: action.tone ?? "info" }
-    case "launch":
-      return action.target === "trip"
-        ? { ...state, launched: true, trip: "lisbon", tab: "trips", mode: "map", snap: OPEN, sheet: "trip", tripTab: "itinerary", day: "tue" }
-        : { ...state, launched: true, trip: "lisbon", tab: "trips", mode: "map", snap: PEEK }
+    case "launch": {
+      const base = {
+        ...state,
+        openPhoto: null,
+        launched: true,
+        trip: "lisbon" as const,
+        tab: "trips" as const,
+        mode: "map" as const,
+        overlay: null,
+        stamp: null,
+        gallery: false,
+      }
+      if (action.target === "map") return { ...base, snap: PEEK, sheet: "trip" as const, tripTab: "itinerary" as const }
+      return { ...base, snap: OPEN, sheet: "trip" as const, tripTab: "itinerary" as const, day: "tue" }
+    }
     case "home":
       return { ...state, launched: false, overlay: null, splitOpen: false, sheet: "trip", toast: null }
     case "create-trip":

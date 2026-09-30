@@ -1,5 +1,5 @@
 import { useRef, useState, type CSSProperties, type PointerEvent } from "react"
-import { passportStamps, trips, type Stamp } from "../data"
+import { inYear, passportStamps, photosForStamp, stampYear, trips, tripYear, type Stamp } from "../data"
 import { useStore } from "../state"
 import { BackButton } from "./chrome"
 
@@ -8,7 +8,8 @@ function useStampLook(stamp: Stamp) {
   const cover = state.stampCovers[stamp.id] ?? stamp.image
   const trip = trips.find((item) => item.stampIds.includes(stamp.id))
   const title = trip?.when === "current" ? state.tripTitle : (trip?.title ?? stamp.city)
-  return { cover, title, photos: [cover, ...stamp.photos.filter((src) => src !== cover)] }
+  const all = photosForStamp(stamp, state.photos)
+  return { cover, title, photos: [cover, ...all.filter((src) => src !== cover)] }
 }
 
 export function StampArt({ stamp, photo, className = "", style }: { stamp: Stamp; photo?: string; className?: string; style?: CSSProperties }) {
@@ -26,10 +27,15 @@ export function StampArt({ stamp, photo, className = "", style }: { stamp: Stamp
 }
 
 const tripCovers = trips.flatMap((trip) => passportStamps.filter((stamp) => stamp.id === trip.stampIds[0]))
+const tripNights: Record<string, number> = { amsterdam: 2, munich: 9, porto: 4, paris: 2, lisbon: 4 }
 
 export function PassportPanel() {
-  const { dispatch } = useStore()
+  const { state, dispatch } = useStore()
   const [all, setAll] = useState(false)
+  const stamps = passportStamps.filter((stamp) => inYear(stampYear(stamp), state.year))
+  const covers = tripCovers.filter((stamp) => inYear(stampYear(stamp), state.year))
+  const nights = trips.filter((trip) => inYear(tripYear(trip), state.year)).reduce((sum, trip) => sum + (tripNights[trip.id] ?? 0), 0)
+  const showTokyo = inYear(2026, state.year)
   return (
     <div className="sheet panel passport-panel">
       <span className="handle" />
@@ -48,15 +54,15 @@ export function PassportPanel() {
       </header>
       <dl className="pass-numbers">
         <div>
-          <dd>4</dd>
+          <dd>{new Set(stamps.map((stamp) => stamp.country)).size}</dd>
           <dt>Countries</dt>
         </div>
         <div>
-          <dd>7</dd>
+          <dd>{stamps.length}</dd>
           <dt>Cities</dt>
         </div>
         <div>
-          <dd>21</dd>
+          <dd>{nights}</dd>
           <dt>Nights away</dt>
         </div>
       </dl>
@@ -84,7 +90,8 @@ export function PassportPanel() {
         </button>
       </div>
       <div className={all ? "stamp-strip all" : "stamp-strip"} data-vaul-no-drag>
-        {tripCovers.map((stamp) => (
+        {covers.length === 0 && !showTokyo && <p className="stamps-empty">No stamps from {state.year} yet.</p>}
+        {covers.map((stamp) => (
           <button
             key={stamp.id}
             type="button"
@@ -96,14 +103,16 @@ export function PassportPanel() {
             <StampArt stamp={stamp} />
           </button>
         ))}
-        <button type="button" className="future-stamp" aria-label="Tokyo stamp, revealing soon" onClick={() => dispatch({ type: "toast", toast: "Your Tokyo stamp reveals when the trip ends." })}>
-          <span className="stamp-art">
-            <span className="stamp-blank" />
-            <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
-            <span className="stamp-title">Tokyo</span>
-            <span className="stamp-soon">revealing soon</span>
-          </span>
-        </button>
+        {showTokyo && (
+          <button type="button" className="future-stamp" aria-label="Tokyo stamp, revealing soon" onClick={() => dispatch({ type: "toast", toast: "Your Tokyo stamp reveals when the trip ends." })}>
+            <span className="stamp-art">
+              <span className="stamp-blank" />
+              <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
+              <span className="stamp-title">Tokyo</span>
+              <span className="stamp-soon">revealing soon</span>
+            </span>
+          </button>
+        )}
       </div>
     </div>
   )
@@ -185,7 +194,7 @@ function StampStage({ stamp }: { stamp: Stamp }) {
             <span className="stamp-back-head">
               <strong>{title}</strong>
               <em>
-                {stamp.date} · {stamp.photos.length} photos
+                {stamp.date} · {photos.length} photos
               </em>
             </span>
           </div>
@@ -212,7 +221,7 @@ function GalleryPage({ stamp }: { stamp: Stamp }) {
         <span />
       </header>
       <p className="gallery-sub">
-        {stamp.country} · {stamp.date} · {stamp.photos.length} photos
+        {stamp.country} · {stamp.date} · {photos.length} photos
       </p>
       <div className="gallery-grid">
         {photos.map((src, index) => {
