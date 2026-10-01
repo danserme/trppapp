@@ -24,7 +24,10 @@ export function StampArt({ stamp, photo, className = "", style }: { stamp: Stamp
       <span className="stamp-grain stamp-wash" />
       <span className="stamp-grain stamp-tooth" />
       <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
-      <span className="stamp-title">{title}</span>
+      <span className="stamp-title">
+        {title}
+        <em>{stamp.date}</em>
+      </span>
     </span>
   )
 }
@@ -191,9 +194,7 @@ function StampStage({ stamp }: { stamp: Stamp }) {
             <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
             <span className="stamp-back-head">
               <strong>{title}</strong>
-              <em>
-                {stamp.date} · {photos.length} photos
-              </em>
+              <em>{stamp.date}</em>
             </span>
           </div>
         </div>

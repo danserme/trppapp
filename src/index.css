@@ -1956,8 +1956,8 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   gap: 0.6cqw;
   text-align: center;
 }
-.stamp-back-head strong { font-family: Manrope, sans-serif; font-weight: 600; font-size: 8.6cqw; line-height: 1.1; color: #1a2138; }
-.stamp-back-head em { font-family: Manrope, sans-serif; font-style: normal; font-size: 4.6cqw; color: #6f768b; }
+.stamp-back-head strong { font-family: Manrope, sans-serif; font-weight: 600; font-size: 8.6cqw; line-height: 1.1; color: #111; }
+.stamp-back-head em { font-family: Manrope, sans-serif; font-style: normal; font-weight: 500; font-size: 4.6cqw; color: #111; }
 
 .stamp-art {
   position: relative;
@@ -2002,6 +2002,25 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   color: #878787;
   text-align: center;
   overflow-wrap: break-word;
+}
+.stamp-title em { display: none; }
+.stamp-face .stamp-title {
+  top: 81.1%;
+  bottom: 2.6%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6cqw;
+  color: #111;
+}
+.stamp-face .stamp-title em {
+  display: block;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 4.6cqw;
+  line-height: 1.1;
+  color: #111;
 }
 .stamp-hint { margin: 0; max-width: 240px; text-align: center; font-size: 13px; color: #5e6678; }
 
