@@ -82,7 +82,11 @@ export function HomeScreen() {
         <button type="button" className="widget widget-map" onClick={launch("map")} aria-label="Open trip map">
           <span className="widget-card">
             <img className="widget-map-bg" src="/assets/home/widget-map.png" alt="" />
-            <img className="widget-map-shot" src="/assets/home/widget-shot.png" alt="" />            <span className="widget-map-panel">
+            <img className="widget-map-shot" src="/assets/home/widget-shot.png" alt="" />
+            <img className="widget-map-route next" src="/assets/home/widget-route-a.svg" alt="" />
+            <img className="widget-map-route past" src="/assets/home/widget-route-b.svg" alt="" />
+            <img className="widget-map-here" src="/assets/home/widget-current.svg" alt="" />
+            <span className="widget-map-panel">
               <span>
                 <b>Day 2/4</b>
                 <em>3 stops left</em>

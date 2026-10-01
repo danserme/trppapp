@@ -1,4 +1,5 @@
-import routeJson from "./route.json"
+import routeJson from "./route.json" with { type: "json" }
+import awayRoutes from "./away-routes.json" with { type: "json" }
 
 export type Person = {
   id: string
@@ -560,7 +561,7 @@ export const passportStamps: Stamp[] = [
   { id: "berlin", city: "Berlin", country: "Germany", date: "Aug 2026", coord: [13.405, 52.52], tilt: -3.49, image: shot("berlin-1"), photos: [shot("berlin-1"), shot("berlin-2")] },
   { id: "porto", city: "Porto", country: "Portugal", date: "Sep 2026", coord: [-8.6291, 41.1579], tilt: -1.81, image: shot("porto-1"), photos: [shot("porto-1"), shot("porto-2")] },
   { id: "paris", city: "Paris", country: "France", date: "Sep 2026", coord: [2.3522, 48.8566], tilt: -6.65, image: shot("paris-1"), photos: [shot("paris-1"), shot("paris-2")] },
-  { id: "lisbon", city: "Lisbon", country: "Portugal", date: "Oct 2026", coord: [-9.1393, 38.7223], tilt: 1.73, image: cityPhoto, photos: lisbonPhotos },
+  { id: "lisbon", city: "Lisbon", country: "Portugal", date: "Oct 2026", coord: [-9.1393, 38.7223], tilt: 0, image: cityPhoto, photos: lisbonPhotos },
 ]
 
 export const stampYear = (stamp: Stamp) => Number(stamp.date.slice(-4))
@@ -678,7 +679,7 @@ const po = { torel: [-8.6153, 41.1447] as LngLat, airport: [-8.6781, 41.2481] as
 const pa = { hotel: [2.344, 48.871] as LngLat, nord: [2.3553, 48.8809] as LngLat }
 const tk = { hotel: [139.702, 35.6951] as LngLat, haneda: [139.7798, 35.5494] as LngLat }
 
-export const awayPlans: Record<Exclude<TripId, "lisbon">, AwayDay[]> = {
+export const awayStops: Record<Exclude<TripId, "lisbon">, AwayDay[]> = {
   amsterdam: [
     plan("am1", home(ams.flat), [4.8866, 52.3625], ams.centraal, [4.4863, 51.92], [4.4826, 51.9093], [4.4908, 51.8989]),
     plan("am2", home(ams.flat), [4.8852, 52.36], [4.868, 52.3669], [4.9375, 52.3134]),
@@ -715,6 +716,11 @@ export const awayPlans: Record<Exclude<TripId, "lisbon">, AwayDay[]> = {
     plan("tk4", home(tk.hotel), tk.haneda),
   ],
 }
+
+const streets = awayRoutes as unknown as Record<DayId, LngLat[]>
+export const awayPlans = Object.fromEntries(
+  Object.entries(awayStops).map(([trip, plans]) => [trip, plans.map((item) => ({ ...item, path: streets[item.day] ?? item.path }))]),
+) as typeof awayStops
 
 function arc([x1, y1]: LngLat, [x2, y2]: LngLat): LngLat[] {
   const dx = x2 - x1

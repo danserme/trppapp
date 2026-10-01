@@ -13,6 +13,14 @@
     <title>TripUp</title>
   </head>
   <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <filter id="liquid-glass" x="0" y="0" width="1" height="1" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+        <feImage href="/assets/glass/lens-x.svg" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="x" />
+        <feImage href="/assets/glass/lens-y.svg" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="y" />
+        <feBlend in="x" in2="y" mode="screen" result="lens" />
+        <feDisplacementMap in="SourceGraphic" in2="lens" scale="0.14" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </svg>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

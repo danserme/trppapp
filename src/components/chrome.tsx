@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { person } from "../state"
 import { IconBack } from "./icons"
 
@@ -81,21 +81,193 @@ export function Face({ id, size = 36 }: { id: string; size?: number }) {
   return <img className="face" src={person(id)?.photo} alt="" width={size} height={size} />
 }
 
-export function TabBar({
-  tab,
-  onTab,
-  onAdd,
-}: {
-  tab: "trips" | "friends" | "passport"
-  onTab: (tab: "trips" | "friends" | "passport") => void
-  onAdd: () => void
-}) {
+type Tab = "trips" | "friends" | "passport"
+
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: "trips", label: "Trips", icon: "tab-trips" },
+  { id: "friends", label: "Friends", icon: "tab-friends" },
+  { id: "passport", label: "Passport", icon: "passport" },
+]
+
+type Spring = { x: number; v: number; to: number }
+
+function step(spring: Spring, dt: number, response: number, damping: number) {
+  const stiffness = (2 * Math.PI / response) ** 2
+  const friction = (4 * Math.PI * damping) / response
+  spring.v += (-stiffness * (spring.x - spring.to) - friction * spring.v) * dt
+  spring.x += spring.v * dt
+}
+
+const settled = (spring: Spring) => Math.abs(spring.x - spring.to) < 0.01 && Math.abs(spring.v) < 0.01
+
+function rubberband(value: number, min: number, max: number) {
+  const band = (over: number) => (over * 60 * 0.55) / (60 + 0.55 * over)
+  if (value < min) return min - band(min - value)
+  if (value > max) return max + band(value - max)
+  return value
+}
+
+function useLens(index: number, onCommit: (index: number) => void) {
+  const pill = useRef<HTMLDivElement>(null)
+  const lens = useRef<HTMLSpanElement>(null)
+  const motion = useRef({
+    x: { x: 0, v: 0, to: 0 } as Spring,
+    lift: { x: 0, v: 0, to: 0 } as Spring,
+    slots: [] as { left: number; width: number }[],
+    frame: 0,
+    last: 0,
+    placed: false,
+  })
+
+  const paint = useCallback(() => {
+    const { x, lift, slots } = motion.current
+    const el = lens.current
+    if (!el || !slots.length) return
+    const stretch = Math.min(Math.abs(x.v) / 3400, 0.14)
+    const grow = Math.max(lift.x, -0.2)
+    el.style.width = `${slots[0].width}px`
+    el.style.transform = `translateX(${x.x}px) scale(${(1 + 0.16 * grow) * (1 + stretch)}, ${(1 + 0.26 * grow) * (1 - stretch * 0.45)})`
+  }, [])
+
+  const run = useCallback(() => {
+    const state = motion.current
+    if (state.frame) return
+    state.last = performance.now()
+    const tick = (now: number) => {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      let dt = Math.min((now - state.last) / 1000, 1 / 30)
+      state.last = now
+      if (reduce) {
+        for (const spring of [state.x, state.lift]) Object.assign(spring, { x: spring.to, v: 0 })
+      }
+      while (dt > 0) {
+        const slice = Math.min(dt, 1 / 240)
+        step(state.x, slice, 0.4, 0.74)
+        step(state.lift, slice, 0.32, 0.62)
+        dt -= slice
+      }
+      paint()
+      if (settled(state.x) && settled(state.lift)) {
+        for (const spring of [state.x, state.lift]) Object.assign(spring, { x: spring.to, v: 0 })
+        paint()
+        state.frame = 0
+        return
+      }
+      state.frame = requestAnimationFrame(tick)
+    }
+    state.frame = requestAnimationFrame(tick)
+  }, [paint])
+
+  useLayoutEffect(() => {
+    const node = pill.current
+    if (!node) return
+    const measure = () => {
+      const tabs = [...node.querySelectorAll<HTMLElement>(".tab")]
+      motion.current.slots = tabs.map((tab) => ({ left: tab.offsetLeft - 2, width: tab.offsetWidth + 4 }))
+    }
+    measure()
+    const observer = new ResizeObserver(() => {
+      measure()
+      paint()
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [paint])
+
+  useLayoutEffect(() => {
+    const state = motion.current
+    const slot = state.slots[index]
+    if (!slot) return
+    state.x.to = slot.left
+    if (!state.placed) {
+      state.placed = true
+      state.x.x = slot.left
+      paint()
+      return
+    }
+    run()
+  }, [index, paint, run])
+
+  useEffect(() => () => cancelAnimationFrame(motion.current.frame), [])
+
+  const [near, setNear] = useState<number | null>(null)
+  const drag = useRef<{ id: number; from: number; moved: boolean } | null>(null)
+  const local = (clientX: number) => clientX - (pill.current?.getBoundingClientRect().left ?? 0)
+  const nearest = (center: number) => {
+    const { slots } = motion.current
+    return slots.reduce((best, slot, i) => (Math.abs(slot.left + slot.width / 2 - center) < Math.abs(slots[best].left + slots[best].width / 2 - center) ? i : best), 0)
+  }
+  const pressed = useRef({ at: 0, timer: 0 })
+  const lift = (on: boolean) => {
+    const press = pressed.current
+    window.clearTimeout(press.timer)
+    const apply = () => {
+      motion.current.lift.to = on ? 1 : 0
+      if (on) motion.current.lift.v += 4
+      lens.current?.classList.toggle("lifted", on)
+      run()
+    }
+    if (on) {
+      press.at = performance.now()
+      apply()
+    } else press.timer = window.setTimeout(apply, Math.max(0, 180 - (performance.now() - press.at)))
+  }
+  useEffect(() => () => window.clearTimeout(pressed.current.timer), [])
+
+  function down(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!event.isPrimary || event.button !== 0) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    drag.current = { id: event.pointerId, from: event.clientX, moved: false }
+    const target = nearest(local(event.clientX))
+    motion.current.x.to = motion.current.slots[target].left
+    setNear(target)
+    lift(true)
+  }
+
+  function move(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = drag.current
+    if (!start || start.id !== event.pointerId) return
+    if (!start.moved && Math.abs(event.clientX - start.from) < 6) return
+    start.moved = true
+    const { slots, x } = motion.current
+    const center = local(event.clientX)
+    x.to = rubberband(center - slots[0].width / 2, slots[0].left, slots[slots.length - 1].left)
+    run()
+    const target = nearest(center)
+    if (target !== near) setNear(target)
+  }
+
+  function up(event: ReactPointerEvent<HTMLDivElement>, commit: boolean) {
+    const start = drag.current
+    if (!start || start.id !== event.pointerId) return
+    drag.current = null
+    const target = commit ? nearest(local(event.clientX)) : index
+    motion.current.x.to = motion.current.slots[target].left
+    setNear(null)
+    lift(false)
+    if (commit) onCommit(target)
+  }
+
+  const handlers = {
+    onPointerDown: down,
+    onPointerMove: move,
+    onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => up(event, true),
+    onPointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => up(event, false),
+  }
+  return { pill, lens, near, handlers }
+}
+
+export function TabBar({ tab, onTab, onAdd }: { tab: Tab; onTab: (tab: Tab) => void; onAdd: () => void }) {
+  const index = TABS.findIndex((item) => item.id === tab)
+  const { pill, lens, near, handlers } = useLens(index, (target) => onTab(TABS[target].id))
+  const shown = near ?? index
   return (
     <div className="tabbar">
-      <div className="tab-pill glass">
-        <TabButton active={tab === "trips"} label="Trips" icon="tab-trips" onClick={() => onTab("trips")} />
-        <TabButton active={tab === "friends"} label="Friends" icon="tab-friends" onClick={() => onTab("friends")} />
-        <TabButton active={tab === "passport"} label="Passport" icon="passport" onClick={() => onTab("passport")} />
+      <div ref={pill} className="tab-pill glass" {...handlers}>
+        <span ref={lens} className="tab-lens" aria-hidden="true" />
+        {TABS.map((item, i) => (
+          <TabButton key={item.id} active={i === shown} current={item.id === tab} label={item.label} icon={item.icon} onClick={() => onTab(item.id)} />
+        ))}
       </div>
       <button className="search-btn glass" type="button" aria-label="Add trip" onClick={onAdd}>
         <TabIcon icon="tab-plus" />
@@ -108,9 +280,9 @@ function TabIcon({ icon }: { icon: string }) {
   return <i className="tab-icon" aria-hidden="true" style={{ "--icon": `url(/assets/icons/${icon}.svg)` } as CSSProperties} />
 }
 
-function TabButton({ active, label, icon, onClick }: { active: boolean; label: string; icon: string; onClick: () => void }) {
+function TabButton({ active, current, label, icon, onClick }: { active: boolean; current: boolean; label: string; icon: string; onClick: () => void }) {
   return (
-    <button type="button" className={active ? "tab active" : "tab"} aria-current={active ? "page" : undefined} onClick={onClick}>
+    <button type="button" className={active ? "tab active" : "tab"} aria-current={current ? "page" : undefined} onClick={(event) => event.detail === 0 && onClick()}>
       <TabIcon icon={icon} />
       <span>{label}</span>
     </button>

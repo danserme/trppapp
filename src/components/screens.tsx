@@ -101,11 +101,23 @@ export function TripList() {
                 )}
               </div>
               {trip.stampIds.length > 0 && (
-                <span className="stamp-row" aria-hidden="true">
+                <button
+                  type="button"
+                  className="stamp-row"
+                  aria-label={`${trip.title} photos`}
+                  onClick={() => {
+                    if (!openable(trip.id)) return
+                    const days = tripDays(trip.id).map((day) => day.id)
+                    const first = days.find((day) => state.photos.some((photo) => photo.day === day))
+                    dispatch({ type: "open-trip", trip: trip.id })
+                    if (first) dispatch({ type: "day", day: first })
+                    dispatch({ type: "trip-tab", tab: "photos" })
+                  }}
+                >
                   {tripShots(trip.stampIds, state.stampCovers, state.photos).map(({ stamp, photo }, index) => (
                     <StampArt key={photo} stamp={stamp} photo={photo} style={{ transform: `rotate(${[-8, 4, -3, 7][index % 4]}deg)` }} />
                   ))}
-                </span>
+                </button>
               )}
             </article>
           ),
@@ -122,8 +134,8 @@ export function FriendsPanel() {
       <span className="handle" />
       <header className="trip-head">
         <h1>Friends</h1>
-        <button type="button" className="pass-share" aria-label="Share invite link" onClick={() => dispatch({ type: "toast", toast: "Invite link copied." })}>
-          <IconShare />
+        <button type="button" className="pass-share" aria-label="Add friend" onClick={() => dispatch({ type: "toast", toast: "Adding friends is off in the demo." })}>
+          <img className="asset" src="/assets/icons/user-plus.svg" alt="" />
         </button>
       </header>
       <p className="trip-dates">{friends.length} friends on TripUp</p>

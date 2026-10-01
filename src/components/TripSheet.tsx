@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import { isPastTrip, parsedTickets, passportStamps, pastExpenses, tickets, trips, tripDays, type DayId, type Expense, type Poll, type SharedPhoto, type Stop } from "../data"
-import { PEEK, TODAY, dayStops, isPastDay, person, place, tripRange, useStore } from "../state"
+import { PEEK, TALL, TODAY, dayStops, isPastDay, person, place, tripRange, useStore } from "../state"
 import { FriendsPanel } from "./screens"
 import { PassportPanel } from "./Passport"
 import { DaySegments, Face, PhotoStack } from "./chrome"
@@ -21,20 +21,21 @@ export function TripDrawer() {
       </SheetFrame>
     )
   if (state.snap === PEEK) return <PeekCard />
+  const photos = state.trip === "lisbon" && <PhotoShortcut hidden={state.snap === TALL} />
   if (state.sheet === "group")
     return (
-      <SheetFrame hug view="group">
+      <SheetFrame hug view="group" above={photos}>
         <GroupSheet />
       </SheetFrame>
     )
   return (
-    <SheetFrame hug={state.tripTab === "docs"} view={`trip-${state.tripTab}`}>
+    <SheetFrame hug={state.tripTab === "docs"} view={`trip-${state.tripTab}`} above={photos}>
       <TripSheet />
     </SheetFrame>
   )
 }
 
-function SheetFrame({ hug = false, view, children }: { hug?: boolean; view: string; children: ReactNode }) {
+function SheetFrame({ hug = false, view, above, children }: { hug?: boolean; view: string; above?: ReactNode; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   const [height, setHeight] = useState<number>()
   useLayoutEffect(() => {
@@ -53,9 +54,16 @@ function SheetFrame({ hug = false, view, children }: { hug?: boolean; view: stri
     return () => observer.disconnect()
   }, [hug, view])
   return (
-    <div ref={ref} className={hug ? "sheet-frame hug" : "sheet-frame"} style={{ height }}>
-      {children}
-    </div>
+    <>
+      {above && height !== undefined && (
+        <div className="sheet-above" style={{ bottom: height + 8 }} data-vaul-no-drag>
+          {above}
+        </div>
+      )}
+      <div ref={ref} className={hug ? "sheet-frame hug" : "sheet-frame"} style={{ height }}>
+        {children}
+      </div>
+    </>
   )
 }
 
@@ -82,7 +90,7 @@ const cameraRoll = [
   "/assets/food/ribatejo.jpg",
 ]
 
-function PhotoShortcut() {
+function PhotoShortcut({ hidden = false }: { hidden?: boolean }) {
   const { dispatch } = useStore()
   const [tray, setTray] = useState<"closed" | "open" | "closing">("closed")
   const root = useRef<HTMLDivElement>(null)
@@ -105,8 +113,10 @@ function PhotoShortcut() {
     close()
   }
 
+  if (hidden && open) setTray("closing")
+
   return (
-    <div className="peek-photos" ref={root}>
+    <div className={hidden ? "peek-photos away" : "peek-photos"} ref={root} aria-hidden={hidden || undefined}>
       {tray !== "closed" && (
         <div
           className={tray === "closing" ? "peek-photo-tray closing" : "peek-photo-tray"}

@@ -108,11 +108,9 @@ function Phone() {
   const dayView = state.tab === "trips" && state.snap !== PEEK && state.sheet !== "group" && state.tripTab === "itinerary"
   const lit = dayView && (state.trip !== "lisbon" || state.day !== TODAY)
   const highlight = useMemo<MapHighlight>(() => (lit ? { trip: state.trip, day: state.day } : null), [lit, state.trip, state.day])
-  const sheetTop = state.tab === "trips" && state.snap === PEEK ? PHONE_H - 400 : PHONE_H - snapPx
-  const [held, setHeld] = useState({ focus, highlight, sheetTop })
-  const onFriends = state.tab === "friends"
-  if (!onFriends && (held.focus !== focus || held.highlight !== highlight || held.sheetTop !== sheetTop)) setHeld({ focus, highlight, sheetTop })
-  const camera = onFriends ? held : { focus, highlight, sheetTop }
+  const peekTop = PHONE_H - 400
+  const sheetTop = state.tab === "trips" && state.snap === PEEK ? peekTop : PHONE_H - snapPx
+  const camera = state.tab === "friends" ? { focus: "trip" as const, highlight: null, sheetTop: peekTop } : { focus, highlight, sheetTop }
 
   useEffect(() => {
     document.documentElement.dataset.mode = "app"
@@ -158,6 +156,11 @@ function Phone() {
             setYearsOpen(false)
           }}
           onStamp={(id) => dispatch({ type: "stamp", id })}
+          onTrip={(trip, day) => {
+            dispatch({ type: "open-trip", trip })
+            if (day) dispatch({ type: "day", day })
+            setYearsOpen(false)
+          }}
           onTripsInView={setTripsInView}
         />
       )}

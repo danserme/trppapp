@@ -1,11 +1,13 @@
 import { useRef, useState, type CSSProperties, type PointerEvent } from "react"
-import { inYear, passportStamps, photosForStamp, stampYear, trips, tripYear, type Stamp } from "../data"
+import { inYear, passportStamps, photosForStamp, stampYear, tokyoDays, trips, tripYear, type Stamp } from "../data"
 import { useStore } from "../state"
 import { BackButton } from "./chrome"
 
+const stampPhotos: Record<string, string> = Object.fromEntries(["amsterdam", "munich", "porto", "paris", "lisbon"].map((id) => [id, `/assets/passport/stamps/${id}.jpg`]))
+
 function useStampLook(stamp: Stamp) {
   const { state } = useStore()
-  const cover = state.stampCovers[stamp.id] ?? stamp.image
+  const cover = state.stampCovers[stamp.id] ?? stampPhotos[stamp.id] ?? stamp.image
   const trip = trips.find((item) => item.stampIds.includes(stamp.id))
   const title = trip?.when === "current" ? state.tripTitle : (trip?.title ?? stamp.city)
   const all = photosForStamp(stamp, state.photos)
@@ -48,7 +50,7 @@ export function PassportPanel() {
             <em>Explorer Lv4</em>
           </p>
         </div>
-        <button type="button" className="pass-share" aria-label="Edit passport" onClick={() => dispatch({ type: "toast", toast: "Nice try! This passport is demo-only, so no forged stamps today." })}>
+        <button type="button" className="pass-share" aria-label="Edit passport" onClick={() => dispatch({ type: "toast", toast: "Editing is off in the demo." })}>
           <img className="asset" src="/assets/icons/pencil.svg" alt="" />
         </button>
       </header>
@@ -75,9 +77,7 @@ export function PassportPanel() {
           <em>1,860 km · TU 834</em>
         </article>
         <button type="button" className="pass-card" onClick={() => dispatch({ type: "open-trip", trip: "tokyo" })}>
-          <small>
-            <img className="asset" src="/assets/passport/next.svg" alt="" /> Next trip
-          </small>
+          <small>Next trip</small>
           <strong>Tokyo</strong>
           <em>Nov 11 · in 42 days</em>
           <img className="asset pass-card-go" src="/assets/passport/chevron.svg" alt="" />
@@ -104,13 +104,10 @@ export function PassportPanel() {
           </button>
         ))}
         {showTokyo && (
-          <button type="button" className="future-stamp" aria-label="Tokyo stamp, revealing soon" onClick={() => dispatch({ type: "toast", toast: "Your Tokyo stamp reveals when the trip ends." })}>
-            <span className="stamp-art">
-              <span className="stamp-blank" />
-              <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
-              <span className="stamp-title">Tokyo</span>
-              <span className="stamp-soon">revealing soon</span>
-            </span>
+          <button type="button" className="future-stamp" aria-label="Tokyo stamp, pending" onClick={() => dispatch({ type: "toast", toast: "Your Tokyo stamp reveals when the trip ends." })}>
+            <strong>Tokyo</strong>
+            <span>pending</span>
+            <span>{tokyoDays[0].label}</span>
           </button>
         )}
       </div>
