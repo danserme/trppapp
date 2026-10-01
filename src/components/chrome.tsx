@@ -336,6 +336,148 @@ export function Toolbar({ lead, children }: { lead?: ReactNode; children: ReactN
   )
 }
 
+type SwipeAction = { label: string; icon: ReactNode; tone: "edit" | "delete"; onClick: () => void }
+
+const SWIPE_EASE = "cubic-bezier(0.32, 0.72, 0, 1)"
+let closeOpenRow: (() => void) | null = null
+
+export function SwipeRow({ actions, children }: { actions: SwipeAction[]; children: ReactNode }) {
+  const row = useRef<HTMLDivElement>(null)
+  const face = useRef<HTMLDivElement>(null)
+  const tray = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
+  const offset = useRef(0)
+  const drag = useRef<{ x: number; y: number; from: number; axis: "x" | "y" | null; lastX: number; lastT: number; speed: number } | null>(null)
+
+  const width = () => tray.current?.offsetWidth ?? 0
+  const place = (x: number, animate: boolean) => {
+    const el = face.current
+    const actionsEl = tray.current
+    if (!el || !actionsEl) return
+    offset.current = x
+    el.style.transition = animate ? `transform 0.32s ${SWIPE_EASE}` : "none"
+    actionsEl.style.transition = animate ? `opacity 0.32s ${SWIPE_EASE}` : "none"
+    el.style.transform = x ? `translateX(${x}px)` : ""
+    actionsEl.style.opacity = String(Math.min(1, -x / Math.max(width(), 1)))
+  }
+  const settle = useCallback((next: boolean) => {
+    place(next ? -width() : 0, true)
+    setOpen(next)
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const close = () => settle(false)
+    if (closeOpenRow && closeOpenRow !== close) closeOpenRow()
+    closeOpenRow = close
+    const outside = (event: globalThis.PointerEvent) => {
+      if (!row.current?.contains(event.target as Node)) close()
+    }
+    document.addEventListener("pointerdown", outside)
+    return () => {
+      document.removeEventListener("pointerdown", outside)
+      if (closeOpenRow === close) closeOpenRow = null
+    }
+  }, [open, settle])
+
+  function down(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || !event.isPrimary) return
+    drag.current = { x: event.clientX, y: event.clientY, from: offset.current, axis: null, lastX: event.clientX, lastT: event.timeStamp, speed: 0 }
+  }
+
+  function move(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = drag.current
+    if (!start || start.axis === "y") return
+    const dx = event.clientX - start.x
+    const dy = event.clientY - start.y
+    if (!start.axis) {
+      if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) {
+        start.axis = "y"
+        return
+      }
+      if (Math.abs(dx) < 8) return
+      start.axis = "x"
+      event.currentTarget.setPointerCapture(event.pointerId)
+      face.current?.classList.add("dragging")
+    }
+    const dt = Math.max(event.timeStamp - start.lastT, 1)
+    start.speed = (event.clientX - start.lastX) / dt
+    start.lastX = event.clientX
+    start.lastT = event.timeStamp
+    const full = width()
+    let x = start.from + dx
+    if (x > 0) x *= 0.2
+    if (x < -full) x = -full + (x + full) * 0.2
+    place(x, false)
+  }
+
+  function up(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = drag.current
+    drag.current = null
+    if (!start) return
+    face.current?.classList.remove("dragging")
+    if (start.axis !== "x") {
+      if (open && start.axis === null) {
+        swallowClick(event.currentTarget)
+        settle(false)
+      }
+      return
+    }
+    swallowClick(event.currentTarget)
+    const fling = Math.abs(start.speed) > 0.35 ? start.speed < 0 : null
+    settle(fling ?? -offset.current > width() / 2)
+  }
+
+  function run(action: SwipeAction) {
+    const el = row.current
+    if (action.tone !== "delete" || !el) {
+      settle(false)
+      action.onClick()
+      return
+    }
+    const gap = parseFloat(getComputedStyle(el.parentElement ?? el).rowGap) || 0
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches
+    el.style.pointerEvents = "none"
+    const slide = still
+      ? null
+      : face.current?.animate([{ transform: `translateX(${offset.current}px)` }, { transform: "translateX(-105%)" }], { duration: 200, easing: SWIPE_EASE, fill: "forwards" })
+    tray.current?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: "forwards" })
+    const collapse = el.animate(
+      [
+        { height: `${el.offsetHeight}px`, marginBottom: "0px", opacity: 1 },
+        { height: "0px", marginBottom: `${-gap}px`, opacity: 0 },
+      ],
+      { duration: 220, delay: still ? 0 : 140, easing: "cubic-bezier(0.23, 1, 0.32, 1)", fill: "forwards" },
+    )
+    Promise.all([slide?.finished, collapse.finished]).then(action.onClick, action.onClick)
+  }
+
+  return (
+    <div ref={row} className={open ? "swipe-row open" : "swipe-row"}>
+      <div ref={tray} className="swipe-actions" aria-hidden={!open || undefined}>
+        {actions.map((action) => (
+          <button key={action.label} type="button" className={`swipe-action ${action.tone}`} tabIndex={open ? 0 : -1} onClick={() => run(action)}>
+            {action.icon}
+            <span>{action.label}</span>
+          </button>
+        ))}
+      </div>
+      <div ref={face} className="swipe-face" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function swallowClick(el: HTMLElement) {
+  const stop = (event: MouseEvent) => {
+    event.stopPropagation()
+    event.preventDefault()
+  }
+  el.addEventListener("click", stop, { capture: true, once: true })
+  window.setTimeout(() => el.removeEventListener("click", stop, { capture: true }), 0)
+}
+
 export function CheckRow({ id, on, disabled, note, onClick }: { id: string; on: boolean; disabled?: boolean; note?: string; onClick: () => void }) {
   const item = person(id)
   if (!item) return null

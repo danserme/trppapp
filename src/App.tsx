@@ -75,6 +75,7 @@ function Phone() {
   const { state, dispatch, screen, setScreen } = useStore()
   const [yearsOpen, setYearsOpen] = useState(false)
   const [tripsInView, setTripsInView] = useState(0)
+  const removed = useMemo(() => ({ stops: state.removedStops, trips: state.removedTrips }), [state.removedStops, state.removedTrips])
   const showMap = state.mode === "map"
   const drawerExpanded = state.tab !== "trips" || state.snap !== PEEK
   const showChrome = showMap && state.tab === "trips" && state.snap === PEEK
@@ -147,18 +148,21 @@ function Phone() {
           sheetTop={camera.sheetTop}
           focus={camera.focus}
           highlight={camera.highlight}
+          spot={state.tab === "trips" && state.snap !== PEEK ? (state.focusStop?.coord ?? null) : null}
+          removed={removed}
           onInteract={() => {
             if (state.tab === "passport") return
-            if (state.tab !== "trips" || state.snap !== PEEK) {
+            if (state.tab === "friends") {
               dispatch({ type: "tab", tab: "trips" })
               dispatch({ type: "snap", snap: PEEK })
             }
             setYearsOpen(false)
           }}
           onStamp={(id) => dispatch({ type: "stamp", id })}
-          onTrip={(trip, day) => {
+          onTrip={(trip, day, stop) => {
             dispatch({ type: "open-trip", trip })
             if (day) dispatch({ type: "day", day })
+            if (stop) dispatch({ type: "focus-stop", ...stop })
             setYearsOpen(false)
           }}
           onTripsInView={setTripsInView}

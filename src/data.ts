@@ -411,6 +411,8 @@ export type Trip = {
   extra: number
   people: string[]
   stampIds: string[]
+  cities?: string[]
+  savedList?: string
   progress?: string
   left?: string
   next?: { title: string; time: string }
@@ -646,10 +648,10 @@ export const mapStops: { id: string; day: DayId; coord: LngLat; past: boolean }[
   .map((id, index) => ({ id, day: route.stops[id].day, coord: onPath(id), past: index < nowIndex }))
   .filter((item) => !item.id.startsWith("flight") && !item.id.endsWith("night") && key(item.coord) !== key(currentPoint))
 
-export const futureStops: { coord: LngLat; day: DayId }[] = route.order
+export const futureStops: { id: string; coord: LngLat; day: DayId }[] = route.order
   .slice(nowIndex + 1)
   .filter((id) => !id.endsWith("night"))
-  .map((id) => ({ coord: onPath(id), day: route.stops[id].day }))
+  .map((id) => ({ id, coord: onPath(id), day: route.stops[id].day }))
   .filter((stop) => key(stop.coord) !== key(currentPoint))
 
 export function dayFocus(day: DayId) {

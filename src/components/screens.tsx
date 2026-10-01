@@ -19,10 +19,10 @@ import {
 } from "../data"
 import { dusk, paper, daylight, type Palette } from "../mapStyle"
 import { dayStops, isPastDay, person, shortDate, tripRange, useStore } from "../state"
-import { AvatarStack, BackButton, CheckRow, Face, Toolbar } from "./chrome"
+import { AvatarStack, BackButton, CheckRow, Face, SwipeRow, Toolbar } from "./chrome"
 import { CurrentTripCard } from "./TripSheet"
 import { StampArt } from "./Passport"
-import { IconChevron, IconList, IconPlus, IconSearch, IconShare } from "./icons"
+import { IconChevron, IconList, IconPencil, IconPlus, IconSearch, IconShare, IconTrash } from "./icons"
 
 function tripShots(ids: string[], covers: Record<string, string>, shared: SharedPhoto[]) {
   const stamps = ids.flatMap((id) => passportStamps.filter((item) => item.id === id))
@@ -43,7 +43,7 @@ const openable = (id: string): id is TripId => trips.some((trip) => trip.id === 
 
 export function TripList() {
   const { state, dispatch } = useStore()
-  const visible = [...trips, ...state.createdTrips].filter((trip) => state.filter === "all" || trip.when === state.filter)
+  const visible = [...trips, ...state.createdTrips].filter((trip) => !state.removedTrips.includes(trip.id) && (state.filter === "all" || trip.when === state.filter))
   const page = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const root = page.current
@@ -80,46 +80,54 @@ export function TripList() {
           trip.when === "current" ? (
             <CurrentTripCard key={trip.id} />
           ) : (
-            <article key={trip.id} className={`trip-card ${trip.when}`}>
-              <button
-                type="button"
-                className="trip-card-main"
-                onClick={() => {
-                  if (openable(trip.id)) dispatch({ type: "open-trip", trip: trip.id })
-                  else dispatch({ type: "toast", toast: "Planning opens once someone accepts the invite." })
-                }}
-              >
-                <h2>{trip.title}</h2>
-                <p>{trip.dates}</p>
-              </button>
-              <div className="trip-card-foot">
-                <AvatarStack ids={trip.people.slice(0, 2)} extra={trip.extra} size={28} surface="grey" />
-                {trip.when === "upcoming" && openable(trip.id) && (
-                  <button type="button" className="plan-btn" onClick={() => dispatch({ type: "open-trip", trip: trip.id as TripId })}>
-                    Plan trip
-                  </button>
-                )}
-              </div>
-              {trip.stampIds.length > 0 && (
+            <SwipeRow
+              key={trip.id}
+              actions={[
+                { label: "Edit", tone: "edit", icon: <IconPencil />, onClick: () => dispatch({ type: "toast", toast: "Editing this trip is off in the demo." }) },
+                { label: "Delete", tone: "delete", icon: <IconTrash />, onClick: () => dispatch({ type: "remove-trip", id: trip.id, title: trip.title }) },
+              ]}
+            >
+              <article className={`trip-card ${trip.when}`}>
                 <button
                   type="button"
-                  className="stamp-row"
-                  aria-label={`${trip.title} photos`}
+                  className="trip-card-main"
                   onClick={() => {
-                    if (!openable(trip.id)) return
-                    const days = tripDays(trip.id).map((day) => day.id)
-                    const first = days.find((day) => state.photos.some((photo) => photo.day === day))
-                    dispatch({ type: "open-trip", trip: trip.id })
-                    if (first) dispatch({ type: "day", day: first })
-                    dispatch({ type: "trip-tab", tab: "photos" })
+                    if (openable(trip.id)) dispatch({ type: "open-trip", trip: trip.id })
+                    else dispatch({ type: "toast", toast: "Planning opens once someone accepts the invite." })
                   }}
                 >
-                  {tripShots(trip.stampIds, state.stampCovers, state.photos).map(({ stamp, photo }, index) => (
-                    <StampArt key={photo} stamp={stamp} photo={photo} style={{ transform: `rotate(${[-8, 4, -3, 7][index % 4]}deg)` }} />
-                  ))}
+                  <h2>{trip.title}</h2>
+                  <p>{trip.dates}</p>
                 </button>
-              )}
-            </article>
+                <div className="trip-card-foot">
+                  <AvatarStack ids={trip.people.slice(0, 2)} extra={trip.extra} size={28} surface="grey" />
+                  {trip.when === "upcoming" && openable(trip.id) && (
+                    <button type="button" className="plan-btn" onClick={() => dispatch({ type: "open-trip", trip: trip.id as TripId })}>
+                      Plan trip
+                    </button>
+                  )}
+                </div>
+                {trip.stampIds.length > 0 && (
+                  <button
+                    type="button"
+                    className="stamp-row"
+                    aria-label={`${trip.title} photos`}
+                    onClick={() => {
+                      if (!openable(trip.id)) return
+                      const days = tripDays(trip.id).map((day) => day.id)
+                      const first = days.find((day) => state.photos.some((photo) => photo.day === day))
+                      dispatch({ type: "open-trip", trip: trip.id })
+                      if (first) dispatch({ type: "day", day: first })
+                      dispatch({ type: "trip-tab", tab: "photos" })
+                    }}
+                  >
+                    {tripShots(trip.stampIds, state.stampCovers, state.photos).map(({ stamp, photo }, index) => (
+                      <StampArt key={photo} stamp={stamp} photo={photo} style={{ transform: `rotate(${[-8, 4, -3, 7][index % 4]}deg)` }} />
+                    ))}
+                  </button>
+                )}
+              </article>
+            </SwipeRow>
           ),
         )}
       </div>
@@ -665,7 +673,7 @@ export function BillScreen() {
           ? billItems.map((item) => {
               const sum = item.qty * item.price
               return (
-                <li key={item.id}>
+                <li key={item.id} className="bill-item">
                   <div className="bill-row">
                     <label className="bill-name">
                       <input
@@ -687,16 +695,19 @@ export function BillScreen() {
                       </button>
                     </label>
                     <button type="button" aria-label={`Split ${item.name}`} onClick={() => dispatch({ type: "split", open: true })}>
-                      <AvatarStack ids={state.splitIds.slice(0, 2)} extra={Math.max(splitCount - 2, 0)} size={28} />
+                      <AvatarStack ids={state.splitIds.slice(0, 2)} extra={Math.max(splitCount - 2, 0)} size={22} />
                     </button>
                   </div>
-                  <div className="bill-row">
-                    <span>
-                      {item.qty} x {euro(item.price)}
-                    </span>
-                    <b>{euro(sum)}</b>
+                  <div className="bill-figures">
+                    <div>
+                      <span>{euro(item.price)}</span>
+                      <small>x{item.qty}</small>
+                    </div>
+                    <div className="bill-total">
+                      <b>{euro(sum)}</b>
+                      <small>{euro(sum / splitCount)}/person</small>
+                    </div>
                   </div>
-                  <small>{euro(sum / splitCount)}/person</small>
                 </li>
               )
             })
@@ -952,14 +963,53 @@ export function StyleScreen() {
   )
 }
 
+function isMapsList(link: string) {
+  if (!link) return true
+  try {
+    const url = new URL(/^https?:\/\//.test(link) ? link : `https://${link}`)
+    const host = url.hostname.replace(/^www\./, "")
+    return host === "maps.app.goo.gl" || host === "goo.gl" || (/^(maps\.)?google\.[a-z.]+$/.test(host) && (host.startsWith("maps.") || url.pathname.startsWith("/maps")))
+  } catch {
+    return false
+  }
+}
+
+function SavedListField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const link = value.trim()
+  const invalid = !isMapsList(link)
+  return (
+    <label className={invalid ? "edit-field saved-list invalid" : "edit-field saved-list"}>
+      <span>Google Maps saved list</span>
+      <input
+        type="url"
+        inputMode="url"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        value={value}
+        placeholder="maps.app.goo.gl/…"
+        aria-invalid={invalid || undefined}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <small>{invalid ? "Paste a Google Maps list link." : "Share the list in Google Maps and paste the link here."}</small>
+    </label>
+  )
+}
+
 export function EditTrip() {
   const { state, dispatch } = useStore()
   const [title, setTitle] = useState(state.tripTitle)
   const [start, setStart] = useState(state.tripStart)
   const [end, setEnd] = useState(state.tripEnd)
   const [members, setMembers] = useState(state.members)
+  const [savedList, setSavedList] = useState(state.savedList)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const nights = end ? Math.round((Date.parse(end) - Date.parse(start)) / 86400000) : 0
+
+  function save() {
+    if (!isMapsList(savedList.trim())) return dispatch({ type: "toast", toast: "That link isn’t a Google Maps list", tone: "error" })
+    dispatch({ type: "edit-trip", title, start, end: end || start, members, savedList: savedList.trim() })
+  }
   return (
     <div className="page edit-page">
       <header className="invite-head">
@@ -994,6 +1044,7 @@ export function EditTrip() {
           </div>
         )}
       </div>
+      <SavedListField value={savedList} onChange={setSavedList} />
       <div className="edit-field">
         <span>Members · {members.length + 1}</span>
         <ul className="member-list edit-members">
@@ -1017,7 +1068,7 @@ export function EditTrip() {
         </button>
       </div>
       <Toolbar>
-        <button type="button" className="add-btn glass" onClick={() => dispatch({ type: "edit-trip", title, start, end: end || start, members })}>
+        <button type="button" className="add-btn glass" onClick={save}>
           Save changes
         </button>
       </Toolbar>
@@ -1034,19 +1085,40 @@ function toIso(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
 }
 
+const joinCities = (names: string[]) => (names.length < 2 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`)
+
 export function NewTrip() {
   const { dispatch } = useStore()
-  const [place, setPlace] = useState("")
+  const [cities, setCities] = useState([{ id: 0, name: "" }])
+  const nextCity = useRef(1)
+  const focusCity = useRef<number | null>(null)
+  const cityInputs = useRef(new Map<number, HTMLInputElement>())
+  const named = cities.map((city) => city.name.trim()).filter(Boolean)
+  const place = joinCities(named)
   const [title, setTitle] = useState("")
   const [start, setStart] = useState("")
   const [end, setEnd] = useState("")
   const [members, setMembers] = useState<string[]>([])
+  const [savedList, setSavedList] = useState("")
   const [calendarOpen, setCalendarOpen] = useState(false)
   const nights = start && end ? Math.round((Date.parse(end) - Date.parse(start)) / 86400000) : 0
   const people = [...initialMembers, ...friends]
 
+  useEffect(() => {
+    if (focusCity.current === null) return
+    cityInputs.current.get(focusCity.current)?.focus()
+    focusCity.current = null
+  }, [cities])
+
+  function addCity() {
+    const id = nextCity.current++
+    focusCity.current = id
+    setCities((list) => [...list, { id, name: "" }])
+  }
+
   function create() {
-    const name = title.trim() || place.trim()
+    const name = title.trim() || place
+    if (!isMapsList(savedList.trim())) return dispatch({ type: "toast", toast: "That link isn’t a Google Maps list", tone: "error" })
     if (!name) return dispatch({ type: "toast", toast: "Where are you going?", tone: "error" })
     if (!start) return dispatch({ type: "toast", toast: "Pick the dates first", tone: "error" })
     dispatch({
@@ -1059,6 +1131,8 @@ export function NewTrip() {
         extra: Math.max(0, members.length - 2),
         people: members,
         stampIds: [],
+        cities: named,
+        savedList: savedList.trim() || undefined,
       },
     })
   }
@@ -1070,13 +1144,46 @@ export function NewTrip() {
         <h1>New trip</h1>
         <span />
       </header>
-      <label className="edit-field">
-        <span>Destination</span>
-        <input value={place} placeholder="City or country" onChange={(event) => setPlace(event.target.value)} />
-      </label>
+      <div className="edit-field">
+        <span>{cities.length > 1 ? `Cities · ${cities.length}` : "Destination"}</span>
+        <ol className="city-list">
+          {cities.map((city, index) => (
+            <li key={city.id} className="city-row">
+              {cities.length > 1 && <b aria-hidden="true">{index + 1}</b>}
+              <input
+                ref={(el) => {
+                  if (el) cityInputs.current.set(city.id, el)
+                  else cityInputs.current.delete(city.id)
+                }}
+                value={city.name}
+                aria-label={`City ${index + 1}`}
+                placeholder={index === 0 ? "City or country" : "Next city"}
+                enterKeyHint={index === cities.length - 1 ? "next" : undefined}
+                onChange={(event) => setCities((list) => list.map((item) => (item.id === city.id ? { ...item, name: event.target.value } : item)))}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && index === cities.length - 1 && city.name.trim()) addCity()
+                }}
+              />
+              {cities.length > 1 && (
+                <button
+                  type="button"
+                  className="city-remove"
+                  aria-label={`Remove ${city.name.trim() || `city ${index + 1}`}`}
+                  onClick={() => setCities((list) => list.filter((item) => item.id !== city.id))}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              )}
+            </li>
+          ))}
+        </ol>
+        <button type="button" className="add-row" onClick={addCity}>
+          <IconPlus /> Add city
+        </button>
+      </div>
       <label className="edit-field">
         <span>Trip name</span>
-        <input value={title} placeholder={place.trim() ? `e.g. Weekend in ${place.trim()}` : "Name your trip"} onChange={(event) => setTitle(event.target.value)} />
+        <input value={title} placeholder={place ? (named.length > 1 ? `e.g. ${place}` : `e.g. Weekend in ${place}`) : "Name your trip"} onChange={(event) => setTitle(event.target.value)} />
       </label>
       <div className="edit-field">
         <span>Dates</span>
@@ -1106,6 +1213,7 @@ export function NewTrip() {
           </div>
         )}
       </div>
+      <SavedListField value={savedList} onChange={setSavedList} />
       <div className="edit-field">
         <span>Invite · {members.length} picked</span>
         <ul className="member-list checks">

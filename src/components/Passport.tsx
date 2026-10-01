@@ -133,7 +133,7 @@ export function PassportPanel() {
           </article>
           <button type="button" className="pass-card next-trip" onClick={() => dispatch({ type: "open-trip", trip: "tokyo" })}>
             <span>
-              <small>Next trip is in 42 days</small>
+              <small>in 42 days</small>
               <strong>Tokyo</strong>
               <em>11 Nov – 16 Nov, 2026</em>
             </span>

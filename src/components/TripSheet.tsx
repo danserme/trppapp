@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
 import { isPastTrip, parsedTickets, passportStamps, pastExpenses, tickets, trips, tripDays, type DayId, type Expense, type Poll, type SharedPhoto, type Stop } from "../data"
 import { PEEK, TALL, TODAY, dayStops, isPastDay, person, place, tripRange, useStore } from "../state"
 import { FriendsPanel } from "./screens"
 import { PassportPanel } from "./Passport"
-import { DaySegments, Face, PhotoStack } from "./chrome"
-import { ActivityIcon, IconChevron, IconLocate, IconPin, IconPlus } from "./icons"
+import { DaySegments, Face, PhotoStack, SwipeRow } from "./chrome"
+import { ActivityIcon, IconChevron, IconLocate, IconPencil, IconPin, IconPlus, IconTrash } from "./icons"
+import { mapPaths, stopKey } from "../mapPaths"
 
 export function TripDrawer() {
   const { state } = useStore()
@@ -276,12 +277,27 @@ function TripSheetBody() {
   const photoRef = useRef<HTMLInputElement>(null)
   const poll = state.pollByDay[state.day]
   const tab = state.tripTab
-  const plans = dayStops(state.day)
+  const plans = useMemo(() => dayStops(state.day).filter((stop) => !state.removedStops.includes(stopKey(state.day, stop.id))), [state.day, state.removedStops])
   const plansRef = useRef<HTMLDivElement>(null)
   const pastDay = isPastDay(state.day)
+  const focus = state.focusStop
+  const focused = useRef<typeof focus>(null)
   useLayoutEffect(() => {
     const scroller = plansRef.current
     if (!scroller) return
+    const card = tab === "itinerary" && focus ? findCard(scroller, focus.id, plans) : null
+    if (card) {
+      const goal = () => centered(scroller, card)
+      if (focused.current === focus) {
+        scroller.scrollTop = goal()
+        return
+      }
+      focused.current = focus
+      const stop = glide(scroller, goal, card)
+      return () => {
+        if (stop()) focused.current = null
+      }
+    }
     const current =
       tab === "itinerary"
         ? (scroller.querySelector<HTMLElement>(".card.poll.pending") ??
@@ -295,7 +311,7 @@ function TripSheetBody() {
     const previous = current.previousElementSibling as HTMLElement | null
     const peek = current.matches(".pending") ? 20 : previous ? previous.offsetHeight * 0.75 + 44 : 0
     scroller.scrollTop = Math.max(0, top - peek)
-  }, [state.day, tab, state.snap, poll?.question])
+  }, [state.day, tab, state.snap, poll?.question, focus, plans])
   const gap = pastDay ? undefined : plans.find((stop) => stop.kind === "gap")
   const addLabel = done || tab === "photos" ? "Add photo" : tab === "expenses" ? "Add expense" : tab === "docs" ? "Add document" : "Add to itinerary"
 
@@ -443,12 +459,86 @@ function TripSheetBody() {
   )
 }
 
+function bezier(x1: number, y1: number, x2: number, y2: number) {
+  const at = (a: number, b: number, t: number) => 3 * a * (1 - t) ** 2 * t + 3 * b * (1 - t) * t * t + t ** 3
+  return (x: number) => {
+    let [lo, hi] = [0, 1]
+    for (let i = 0; i < 20; i++) {
+      const mid = (lo + hi) / 2
+      if (at(x1, x2, mid) < x) lo = mid
+      else hi = mid
+    }
+    return at(y1, y2, (lo + hi) / 2)
+  }
+}
+
+const sheetEase = bezier(0.32, 0.72, 0, 1)
+const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)"
+const GLIDE_MS = 450
+const PLANS_FADE = 118
+const GRABS = ["pointerdown", "wheel", "touchstart"] as const
+
+function findCard(scroller: HTMLElement, id: string, plans: Stop[]) {
+  const card = scroller.querySelector<HTMLElement>(`[data-stop="${CSS.escape(id)}"]`)
+  if (card || plans.some((stop) => stop.id === id)) return card
+  return scroller.querySelector<HTMLElement>('[data-stop="poll"]')
+}
+
+function centered(scroller: HTMLElement, card: HTMLElement) {
+  const top = card.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
+  const view = scroller.clientHeight - PLANS_FADE
+  const goal = top - Math.max(16, (view - card.offsetHeight) / 2)
+  return Math.min(Math.max(0, goal), scroller.scrollHeight - scroller.clientHeight)
+}
+
+// The goal is re-read every frame: on first open the sheet is still settling its height.
+function glide(scroller: HTMLElement, goal: () => number, card: HTMLElement) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    scroller.scrollTop = goal()
+    flash(card)
+    return () => false
+  }
+  const from = scroller.scrollTop
+  let start = 0
+  let running = true
+  let frame = requestAnimationFrame(function step(now) {
+    start ||= now
+    const t = Math.min((now - start) / GLIDE_MS, 1)
+    scroller.scrollTop = from + (goal() - from) * sheetEase(t)
+    if (t < 1) frame = requestAnimationFrame(step)
+    else end(true)
+  })
+  const grab = () => end(true)
+  const end = (highlight: boolean) => {
+    if (!running) return false
+    running = false
+    cancelAnimationFrame(frame)
+    for (const type of GRABS) scroller.removeEventListener(type, grab)
+    if (highlight) flash(card)
+    return true
+  }
+  for (const type of GRABS) scroller.addEventListener(type, grab, { passive: true })
+  return () => end(false)
+}
+
+function flash(card: HTMLElement) {
+  card.animate(
+    [
+      { opacity: 0, easing: EASE_OUT },
+      { opacity: 1, offset: 0.3 },
+      { opacity: 1, offset: 0.45, easing: "ease" },
+      { opacity: 0 },
+    ],
+    { duration: 1200, pseudoElement: "::after" },
+  )
+}
+
 function StopCard({ stop }: { stop: Stop }) {
   const { state, dispatch } = useStore()
   if (stop.kind === "gap") {
     if (isPastDay(state.day)) {
       return (
-        <article className="card gap past">
+        <article className="card gap past" data-stop={stop.id}>
           <div className="gap-head">
             <strong>Free time</strong>
             <span>{stop.time}</span>
@@ -457,7 +547,7 @@ function StopCard({ stop }: { stop: Stop }) {
       )
     }
     return (
-      <article className="card gap">
+      <article className="card gap" data-stop={stop.id}>
         <div className="gap-head">
           <strong>No plans? Let’s fill in the gap!</strong>
           <span>{stop.time}</span>
@@ -475,8 +565,14 @@ function StopCard({ stop }: { stop: Stop }) {
       </article>
     )
   }
-  return (
-    <article className={stop.tone === "now" ? "card now" : "card"}>
+  const spot = mapPaths(TODAY).spots.get(stopKey(state.day, stop.id))
+  const tap = (event: ReactMouseEvent<HTMLElement>) => {
+    if ((event.target as Element).closest("button")) return
+    if (spot) dispatch({ type: "focus-stop", id: stop.id, coord: spot })
+    else flash(event.currentTarget)
+  }
+  const card = (
+    <article className={stop.tone === "now" ? "card now tappable" : "card tappable"} data-stop={stop.id === "poll-result" ? "poll" : stop.id} onClick={tap}>
       <div className="card-meta">
         <span>{stop.time}</span>
         <em>{stop.status}</em>
@@ -495,6 +591,17 @@ function StopCard({ stop }: { stop: Stop }) {
         </button>
       )}
     </article>
+  )
+  if (stop.id === "poll-result") return card
+  return (
+    <SwipeRow
+      actions={[
+        { label: "Edit", tone: "edit", icon: <IconPencil />, onClick: () => dispatch({ type: "toast", toast: "Editing activities is off in the demo." }) },
+        { label: "Delete", tone: "delete", icon: <IconTrash />, onClick: () => dispatch({ type: "remove-stop", id: stopKey(state.day, stop.id), name: stop.title }) },
+      ]}
+    >
+      {card}
+    </SwipeRow>
   )
 }
 
@@ -605,7 +712,7 @@ function PollCard() {
   const hasVoted = Boolean(poll.revealed) || poll.options.some((option) => option.votes.includes(mine))
   if (!hasVoted) {
     return (
-      <article className="card poll pending">
+      <article className="card poll pending" data-stop="poll">
         <div className="card-meta">
           <span className="poll-when">
             <b>{poll.from}–{poll.to}</b>
@@ -643,7 +750,7 @@ function PollCard() {
   const totalVotes = poll.options.reduce((sum, option) => sum + option.votes.length, 0)
   const most = Math.max(...poll.options.map((item) => item.votes.length))
   return (
-    <article className="card poll">
+    <article className="card poll" data-stop="poll">
       <div className="card-meta">
         <span className="poll-when">
           <b>{poll.from}–{poll.to}</b>

@@ -88,16 +88,20 @@ type State = {
   pollVoting: boolean
   tripStart: string
   tripEnd: string
+  savedList: string
   stamp: string | null
   gallery: boolean
   stampCovers: Record<string, string>
   photos: SharedPhoto[]
   openPhoto: string | null
+  focusStop: { id: string; coord: [number, number] } | null
   ticket: string
   pollLive: DayId | null
   trip: TripId
   tripBack: Mode
   createdTrips: Trip[]
+  removedStops: string[]
+  removedTrips: string[]
 }
 
 const initial: State = {
@@ -134,16 +138,20 @@ const initial: State = {
   pollVoting: true,
   tripStart: "2026-10-05",
   tripEnd: "2026-10-08",
+  savedList: "",
   stamp: null,
   gallery: false,
   stampCovers: {},
   photos: sharedPhotos,
   openPhoto: null,
+  focusStop: null,
   ticket: "pass",
   pollLive: null,
   trip: "lisbon",
   tripBack: "map",
   createdTrips: [],
+  removedStops: [],
+  removedTrips: [],
 }
 
 type Action =
@@ -157,6 +165,7 @@ type Action =
   | { type: "sheet"; sheet: Sheet }
   | { type: "trip-tab"; tab: TripTab }
   | { type: "day"; day: DayId }
+  | { type: "focus-stop"; id: string; coord: [number, number] }
   | { type: "overlay"; overlay: Overlay; anchor?: string | null; voting?: boolean }
   | { type: "launch"; target: "trip" | "map" }
   | { type: "home" }
@@ -168,7 +177,7 @@ type Action =
   | { type: "vote"; optionId: string }
   | { type: "save-poll"; poll: Poll }
   | { type: "palette"; palette: Palette }
-  | { type: "edit-trip"; title: string; start: string; end: string; members: string[] }
+  | { type: "edit-trip"; title: string; start: string; end: string; members: string[]; savedList: string }
   | { type: "stamp"; id: string | null }
   | { type: "gallery"; open: boolean }
   | { type: "stamp-cover"; id: string; src: string }
@@ -180,6 +189,8 @@ type Action =
   | { type: "toast"; toast: string | null; tone?: "info" | "error" }
   | { type: "locate" }
   | { type: "create-trip"; trip: Trip }
+  | { type: "remove-stop"; id: string; name: string }
+  | { type: "remove-trip"; id: string; title: string }
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -209,17 +220,19 @@ function reducer(state: State, action: Action): State {
       }
     case "open-trip": {
       const trip = action.trip ?? "lisbon"
+      const drawerOpen = state.tab === "trips" && state.mode === "map" && state.snap !== PEEK
       return {
         ...state,
         trip,
         day: trip === state.trip ? state.day : trip === "lisbon" ? TODAY : tripDays(trip)[0].id,
         tripBack: state.tab === "trips" ? state.mode : "map",
         openPhoto: null,
+        focusStop: null,
         stamp: null,
         gallery: false,
         tab: "trips",
         mode: "map",
-        snap: OPEN,
+        snap: drawerOpen ? state.snap : OPEN,
         sheet: "trip",
         overlay: null,
         tripTab: "itinerary",
@@ -238,7 +251,9 @@ function reducer(state: State, action: Action): State {
     case "trip-tab":
       return { ...state, tripTab: action.tab, sheet: "trip", snap: OPEN }
     case "day":
-      return { ...state, day: action.day }
+      return { ...state, day: action.day, focusStop: null }
+    case "focus-stop":
+      return { ...state, focusStop: { id: action.id, coord: [action.coord[0], action.coord[1]] } }
     case "overlay":
       return {
         ...state,
@@ -362,6 +377,7 @@ function reducer(state: State, action: Action): State {
         tripStart: action.start,
         tripEnd: action.end,
         members: action.members,
+        savedList: action.savedList,
         overlay: null,
         toastTone: "info",
         toast: "Trip updated.",
@@ -410,6 +426,22 @@ function reducer(state: State, action: Action): State {
     }
     case "toast":
       return { ...state, toast: action.toast, toastTone: action.tone ?? "info" }
+    case "remove-stop":
+      return {
+        ...state,
+        removedStops: [...state.removedStops, action.id],
+        focusStop: state.focusStop?.id === action.id ? null : state.focusStop,
+        toastTone: "info",
+        toast: `${action.name} removed.`,
+      }
+    case "remove-trip":
+      return {
+        ...state,
+        removedTrips: [...state.removedTrips, action.id],
+        createdTrips: state.createdTrips.filter((trip) => trip.id !== action.id),
+        toastTone: "info",
+        toast: `${action.title} deleted.`,
+      }
     case "launch": {
       const base = {
         ...state,
