@@ -275,22 +275,32 @@ function ActivityPicker({ value, onChange }: { value: string; onChange: (value: 
   )
 }
 
+function placeFromText(text: string) {
+  const known = savedPlaces.find((place) => place.name.toLowerCase() === text.toLowerCase())
+  const name = known?.name ?? text
+  const id = known?.id ?? name.toLowerCase().replace(/\s+/g, "-")
+  return { id, name }
+}
+
 export function PollComposer() {
   const { state, dispatch } = useStore()
   const existing = state.pollByDay[state.day]
+  const editing = Boolean(existing && state.pollVoting && !state.pollAnchor)
   const meta = tripDays(state.trip).find((day) => day.id === state.day) ?? tripDays(state.trip)[0]
   const [voting, setVoting] = useState(state.pollVoting)
-  const [question, setQuestion] = useState(existing?.question ?? (state.pollVoting ? "What should we do?" : ""))
+  const [question, setQuestion] = useState(editing ? existing!.question : state.pollVoting ? "What should we do?" : "")
   const [gapFrom, gapTo] = dayStops(state.day).find((stop) => stop.kind === "gap")?.time.split("–") ?? []
-  const [from, setFrom] = useState(existing?.from ?? gapFrom ?? "20.00")
-  const [to, setTo] = useState(existing?.to ?? gapTo ?? "22.00")
-  const [date, setDate] = useState(existing?.date ?? meta.label)
-  const [status, setStatus] = useState(existing?.status ?? (Number(from.split(".")[0]) >= 18 ? "dinner" : "visit"))
+  const [from, setFrom] = useState(editing ? existing!.from : (gapFrom ?? "20.00"))
+  const [to, setTo] = useState(editing ? existing!.to : (gapTo ?? "22.00"))
+  const [date, setDate] = useState(editing ? existing!.date : meta.label)
+  const defaultStatus = Number((editing ? existing!.from : (gapFrom ?? "20.00")).split(".")[0]) >= 18 ? "dinner" : "visit"
+  const [status, setStatus] = useState(editing ? (existing!.status ?? defaultStatus) : defaultStatus)
+  const [place, setPlace] = useState("")
   const [options, setOptions] = useState<{ id: string; name: string }[]>(
-    existing
-      ? existing.options.map((option) => ({
+    editing
+      ? existing!.options.map((option) => ({
           id: option.id,
-          name: option.name ?? savedPlaces.find((place) => place.id === option.id)?.name ?? option.id,
+          name: option.name ?? savedPlaces.find((item) => item.id === option.id)?.name ?? option.id,
         }))
       : [],
   )
@@ -306,10 +316,8 @@ export function PollComposer() {
   function addDraft() {
     const text = draft.trim()
     if (!text) return
-    const known = savedPlaces.find((place) => place.name.toLowerCase() === text.toLowerCase())
-    const id = known?.id ?? text.toLowerCase().replace(/\s+/g, "-")
-    const name = known?.name ?? text
-    setOptions((current) => (current.some((option) => option.id === id) ? current : [...current, { id, name }]))
+    const next = placeFromText(text)
+    setOptions((current) => (current.some((option) => option.id === next.id) ? current : [...current, next]))
     setDraft("")
   }
 
@@ -320,12 +328,14 @@ export function PollComposer() {
   }
 
   function save() {
-    if (options.length === 0) {
-      dispatch({ type: "toast", toast: voting ? "Add at least one option" : "Pick a place first", tone: "error" })
+    const text = place.trim()
+    const chosen = voting ? options : text ? [placeFromText(text)] : []
+    if (chosen.length === 0) {
+      dispatch({ type: "toast", toast: voting ? "Add at least one option" : "Add a place first", tone: "error" })
       return
     }
     const poll: Poll = {
-      question: question.trim() || (voting ? "Where should we go?" : options[0].name),
+      question: question.trim() || (voting ? "Where should we go?" : chosen[0].name),
       from,
       to,
       date,
@@ -334,7 +344,8 @@ export function PollComposer() {
       allowAdd,
       revoting,
       status,
-      options: options.map((option) => ({ id: option.id, name: option.name, votes: [] })),
+      decided: !voting,
+      options: chosen.map((option) => ({ id: option.id, name: option.name, votes: [] })),
     }
     const target = tripDays(state.trip).find((day) => day.label === date)
     if (target && target.id !== state.day) dispatch({ type: "day", day: target.id })
@@ -400,27 +411,39 @@ export function PollComposer() {
         </div>
         <h2>{voting ? "Options" : "Place"}</h2>
         <div className="option-box">
-          <label className="option-entry">
-            <input
-              value={draft}
-              placeholder="Paste link or type an address or a name"
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") addDraft()
-              }}
-            />
-          </label>
-          {options.map((option) => (
-            <div key={option.id} className="option-added">
-              <span>{option.name}</span>
-              <button type="button" aria-label={`Remove ${option.name}`} onClick={() => togglePlace(option.id, option.name)}>
-                Remove
+          {voting ? (
+            <>
+              <label className="option-entry">
+                <input
+                  value={draft}
+                  placeholder="Paste link or type an address or a name"
+                  onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") addDraft()
+                  }}
+                />
+              </label>
+              {options.map((option) => (
+                <div key={option.id} className="option-added">
+                  <span>{option.name}</span>
+                  <button type="button" aria-label={`Remove ${option.name}`} onClick={() => togglePlace(option.id, option.name)}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button type="button" className="text-btn" onClick={addDraft}>
+                <IconPlus /> Add an option
               </button>
-            </div>
-          ))}
-          <button type="button" className="text-btn" onClick={addDraft}>
-            <IconPlus /> {voting ? "Add an option" : "Add a place"}
-          </button>
+            </>
+          ) : (
+            <label className="option-entry">
+              <input
+                value={place}
+                placeholder="Paste link or type an address or a name"
+                onChange={(event) => setPlace(event.target.value)}
+              />
+            </label>
+          )}
         </div>
         <div className="saved-head">
           <span>
@@ -435,14 +458,19 @@ export function PollComposer() {
               <em>Bookmark spots on the map and they show up here.</em>
             </p>
           )}
-          {pool.length > 0 && unsaved.length === 0 && (
+          {voting && pool.length > 0 && unsaved.length === 0 && (
             <p className="saved-empty">
               <strong>All saved places are in</strong>
               <em>Remove an option above to bring it back here.</em>
             </p>
           )}
-          {unsaved.map((item) => (
-            <button key={item.id} type="button" className="saved" onClick={() => togglePlace(item.id, item.name)}>
+          {(voting ? unsaved : pool).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={!voting && place.trim().toLowerCase() === item.name.toLowerCase() ? "saved on" : "saved"}
+              onClick={() => (voting ? togglePlace(item.id, item.name) : setPlace((current) => (current.trim().toLowerCase() === item.name.toLowerCase() ? "" : item.name)))}
+            >
               <img src={item.photo} alt="" />
               <span>
                 <strong>{item.name}</strong>
@@ -532,6 +560,7 @@ export function BillScreen() {
   const { state, dispatch } = useStore()
   const [splitBy, setSplitBy] = useState<"items" | "exact" | "percent">("items")
   const [payerOpen, setPayerOpen] = useState(false)
+  const [itemNames, setItemNames] = useState<Record<string, string>>({})
   const splitCount = Math.max(state.splitIds.length + 1, 1)
   const total = Number(state.billAmount.replace(",", ".")) || 0
   const sharers = ["ari", ...state.splitIds]
@@ -574,7 +603,7 @@ export function BillScreen() {
               amountRef.current?.select()
             }}
           >
-            <img className="asset" src="/assets/icons/pencil.svg" alt="" />
+            <img src="/assets/icons/pencil-grey.svg" alt="" />
           </button>
         </label>
       </div>
@@ -638,7 +667,25 @@ export function BillScreen() {
               return (
                 <li key={item.id}>
                   <div className="bill-row">
-                    <strong>{item.name}</strong>
+                    <label className="bill-name">
+                      <input
+                        aria-label="Item name"
+                        value={itemNames[item.id] ?? item.name}
+                        onChange={(event) => setItemNames((prev) => ({ ...prev, [item.id]: event.target.value }))}
+                      />
+                      <button
+                        type="button"
+                        className="item-edit"
+                        aria-label={`Edit ${itemNames[item.id] ?? item.name}`}
+                        onClick={(event) => {
+                          const input = event.currentTarget.previousElementSibling as HTMLInputElement
+                          input.focus()
+                          input.select()
+                        }}
+                      >
+                        <img src="/assets/icons/pencil-grey-sm.svg" alt="" />
+                      </button>
+                    </label>
                     <button type="button" aria-label={`Split ${item.name}`} onClick={() => dispatch({ type: "split", open: true })}>
                       <AvatarStack ids={state.splitIds.slice(0, 2)} extra={Math.max(splitCount - 2, 0)} size={28} />
                     </button>

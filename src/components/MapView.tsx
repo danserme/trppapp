@@ -124,7 +124,7 @@ function coordsForYear(year: number) {
   if (year === 2026) ids.delete("tokyo")
   return tripPoints.filter((_, index) => ids.has(tripIds[index])).flat()
 }
-const FUTURE = "#0e1a36"
+const FUTURE = "#abb2bf"
 const PAST = "#2b59f0"
 const key = ([lng, lat]: [number, number]) => `${lng},${lat}`
 const isDay = (focus: MapFocus): focus is DayId => focus === "mon" || focus === "tue" || focus === "wed" || focus === "thu"
@@ -320,7 +320,7 @@ export function MapView({ palette, locateTick, year, sheetTop, focus, highlight,
         type: "line",
         source: "paths",
         filter: ["==", ["get", "future"], true],
-        paint: { "line-color": "#999fad", "line-width": 4, "line-opacity-transition": fade, "line-color-transition": fade },
+        paint: { "line-color": FUTURE, "line-width": 4, "line-opacity-transition": fade, "line-color-transition": fade },
         layout: { "line-cap": "round", "line-join": "round" },
       })
       map.addLayer({
@@ -338,6 +338,7 @@ export function MapView({ palette, locateTick, year, sheetTop, focus, highlight,
         paint: {
           "circle-color": ["case", ["get", "future"], "#ffffff", PAST],
           "circle-stroke-color": ["case", ["get", "future"], FUTURE, "#ffffff"],
+          "circle-radius": ["case", ["get", "future"], 4, 6],
           "circle-stroke-width": 2,
           "circle-opacity-transition": fade,
           "circle-stroke-opacity-transition": fade,
@@ -364,8 +365,8 @@ export function MapView({ palette, locateTick, year, sheetTop, focus, highlight,
         source: "passport",
         maxzoom: OVERVIEW_ZOOM,
         filter: ["==", ["geometry-type"], "LineString"],
-        paint: { "line-color": "#2b59f0", "line-width": 2, "line-opacity": 0.75 },
-        layout: { "line-cap": "round" },
+        paint: { "line-color": "#2b59f0", "line-width": 3, "line-opacity": 0.4 },
+        layout: { "line-cap": "round", "line-join": "round" },
       })
       map.addLayer({
         id: "passport-dots",
@@ -373,7 +374,7 @@ export function MapView({ palette, locateTick, year, sheetTop, focus, highlight,
         source: "passport",
         maxzoom: OVERVIEW_ZOOM,
         filter: ["==", ["geometry-type"], "Point"],
-        paint: { "circle-radius": 6, "circle-color": "#2b59f0", "circle-stroke-color": "#fff", "circle-stroke-width": 2.5 },
+        paint: { "circle-radius": 6, "circle-color": "#2b59f0", "circle-stroke-color": "#fff", "circle-stroke-width": 2 },
       })
       applyPalette(map, latest.current.palette)
       ready.current = true
@@ -463,12 +464,12 @@ function syncRoute(map: maplibregl.Map, focus: MapFocus, highlight: MapHighlight
       ? ["case", picked, on, ["get", "rest"], rest, 0]
       : ["case", ["get", "rest"], base, 0]) as maplibregl.ExpressionSpecification
   map.setPaintProperty("path-future", "line-opacity", shown(1, 1, 1))
-  map.setPaintProperty("path-future", "line-color", highlight ? ["case", picked, "#737b91", "#d9dce4"] : "#999fad")
+  map.setPaintProperty("path-future", "line-color", highlight ? ["case", picked, FUTURE, "#d5dae3"] : FUTURE)
   map.setPaintProperty("path-glow", "line-opacity", highlight ? ["case", picked, 0.08, 0] : 0)
   map.setPaintProperty("path-past", "line-opacity", shown(1, 1, 0.18))
   map.setPaintProperty("path-past", "line-width", isAway(focus) ? 6 : ["case", ["==", ["get", "trip"], "lisbon"], 6, 2])
   const dots = (highlight ? ["case", picked, 1, 0.25] : 1) as maplibregl.ExpressionSpecification | number
   map.setPaintProperty("path-dots", "circle-opacity", dots)
   map.setPaintProperty("path-dots", "circle-stroke-opacity", highlight ? ["case", picked, ["case", future, 0.65, 1], future, 0.25, 0.25] : ["case", future, 0.5, 1])
-  map.setPaintProperty("path-dots", "circle-radius", highlight ? ["case", picked, 5, 3.5] : 4)
+  map.setPaintProperty("path-dots", "circle-radius", highlight ? ["case", picked, 6, ["case", future, 4, 6]] : ["case", future, 4, 6])
 }

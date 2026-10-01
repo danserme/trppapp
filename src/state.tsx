@@ -333,7 +333,7 @@ function reducer(state: State, action: Action): State {
         ...action.poll,
         anchorStopId: anchor,
         revealed: false,
-        decided: !state.pollVoting,
+        decided: action.poll.decided ?? !state.pollVoting,
         options: action.poll.options.map((option) => {
           const prior = previous?.options.find((item) => item.id === option.id)
           return { ...option, votes: prior?.votes ?? [] }

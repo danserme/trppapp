@@ -76,15 +76,15 @@ html[data-mode="app"] #root {
 .map { position: absolute; inset: 0; width: 100%; height: 100%; }
 .map canvas { outline: none; }
 .stop-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: #8f8f8f;
-  box-shadow: 0 0 0 1px #fff;
+  background: #fff;
+  box-shadow: 0 0 0 2px #abb2bf;
   cursor: pointer;
 }
-.stop-dot.past { background: #2b59f0; }
-.stop-dot:not(.past):not(.focus) { pointer-events: none; }
+.stop-dot.past { width: 12px; height: 12px; background: #2b59f0; box-shadow: 0 0 0 2px #fff; }
+.stop-dot:not(.past):not(.focus) { visibility: hidden; pointer-events: none; }
 .stop-dot::before { content: ""; position: absolute; inset: -10px; border-radius: 50%; }
 .stop-dot { transition: width 0.25s ease, height 0.25s ease, box-shadow 0.25s ease; }
 .stop-dot.focus {
@@ -93,12 +93,11 @@ html[data-mode="app"] #root {
   background: #2b59f0;
   box-shadow: 0 0 0 3px #fff, 0 0 0 9px rgba(43, 89, 240, 0.2);
 }
-.stop-dot:not(.past):not(.focus) { visibility: hidden; }
 .stop-dot.focus:not(.past) {
-  width: 14px;
-  height: 14px;
+  width: 8px;
+  height: 8px;
   background: #fff;
-  box-shadow: inset 0 0 0 3px rgba(14, 26, 54, 0.6), 0 0 0 2px #fff, 0 0 0 8px rgba(14, 26, 54, 0.07);
+  box-shadow: 0 0 0 2px #abb2bf;
 }
 .here-pin {
   position: relative;
@@ -330,6 +329,17 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   mask: var(--icon) center / 24px 24px no-repeat;
 }
 .search-btn { width: 54px; height: 54px; border-radius: 50%; flex: none; color: #1a1a1a; }
+.tab-pill.glass,
+.search-btn.glass,
+.sheet-bar .glass {
+  box-shadow:
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.75),
+    inset 1.5px 1.5px 0.5px -1px rgba(255, 255, 255, 0.95),
+    inset -1.5px -1.5px 0.5px -1px rgba(255, 255, 255, 0.6),
+    inset 0 -8px 14px -10px rgba(255, 255, 255, 0.7),
+    0 0 0 0.5px rgba(14, 26, 54, 0.06),
+    0 2px 6px rgba(14, 26, 54, 0.05);
+}
 
 .trip-drawer {
   position: absolute !important;
@@ -373,6 +383,8 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   overflow: hidden;
   transition: height 0.42s cubic-bezier(0.32, 0.72, 0, 1);
 }
+.sheet-frame:has(.passport-panel) { overflow: visible; height: auto !important; }
+.sheet-frame:has(.passport-panel) > .sheet { height: auto !important; background: transparent; }
 .sheet-frame > .sheet { height: 100%; }
 .sheet-frame.hug > .sheet { height: auto; flex: none; }
 @media (prefers-reduced-motion: reduce) {
@@ -403,9 +415,9 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   padding: 0 8px;
   background: transparent;
 }
-.peek-locate { position: static; top: auto; right: auto; align-self: flex-end; margin: 0 20px -4px 0; flex: none; width: 40px; height: 40px; }
+.peek-locate { position: static; top: auto; right: auto; align-self: center; margin: 0 20px 0 0; flex: none; width: 40px; height: 40px; }
 .peek-locate .asset { width: 20px; height: 20px; }
-.peek-tools { display: flex; align-items: flex-end; justify-content: space-between; }
+.peek-tools { display: flex; align-items: center; justify-content: space-between; }
 .peek-photos { position: relative; margin-left: 13px; pointer-events: auto; }
 .glass-icon.peek-photos-btn { position: relative; z-index: 1; width: 54px; height: 54px; transition: transform 0.16s ease-out; }
 .peek-photos-btn .asset { width: 27px; height: 27px; }
@@ -1120,36 +1132,47 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .sheet.panel .trip-dates { font-size: 14px; color: #a1a1a1; margin-bottom: 4px; }
 .sheet.panel .member-list li { padding-left: 0; }
 .passport-panel { gap: 16px; }
+.sheet.panel.passport-panel { padding-bottom: 98px; }
 .stamps-empty { margin: 8px 0; color: #a1a1a1; font-size: 14px; }
-.pass-head { display: flex; align-items: center; gap: 12px; margin-top: -6px; }
-.pass-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex: none; box-shadow: 0 3px 10px rgba(27, 34, 64, 0.16); }
-.pass-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pass-head { display: flex; align-items: flex-start; gap: 16px; margin-top: -8px; }
+.pass-avatar { width: 68px; height: 68px; border-radius: 50%; object-fit: cover; flex: none; box-shadow: 0 3px 10px rgba(27, 34, 64, 0.16); }
+.pass-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .pass-id h1 { margin: 0; font-family: Inter, sans-serif; font-weight: 400; font-size: 28px; letter-spacing: -1.2px; line-height: 34px; color: #0e1a36; }
-.pass-id p { margin: 0; display: flex; align-items: center; gap: 8px; }
-.pass-tag { background: #f1f2f5; color: #1b2240; font-size: 12px; font-weight: 700; line-height: 16px; padding: 4px 10px 4px 6px; border-radius: 999px; }
-.pass-id em { font-style: normal; font-size: 14px; color: #a1a1a1; }
-.pass-share { width: 42px; height: 42px; border-radius: 50%; background: #f4f4f4; display: grid; place-items: center; flex: none; }
-.pass-share .asset { width: 18px; height: 18px; }
+.pass-id p { margin: 0; display: flex; align-items: center; gap: 12px; }
+.pass-tag { background: #f1f2f5; color: #1b2240; font-size: 12px; font-weight: 700; line-height: 16px; width: 107px; padding: 4px 10px 6px; border-radius: 999px; }
+.pass-id em { font-style: normal; font-size: 13px; line-height: 18px; color: #a1a1a1; }
+.pass-share { width: 42px; height: 42px; border-radius: 50%; background: #f4f4f4; display: grid; place-items: center; flex: none; align-self: flex-start; }
+.pass-share .asset { width: 20px; height: 20px; }
+.pass-level { display: flex; flex-direction: column; gap: 6px; }
+.pass-level-row { display: flex; align-items: flex-start; justify-content: space-between; }
+.pass-level-row strong { font-size: 12px; font-weight: 500; line-height: 96.765%; color: #000; }
+.pass-level-row span { font-size: 12px; font-weight: 400; line-height: 16px; color: #a1a1a1; }
+.pass-level-track { height: 4px; border-radius: 94px; background: #d9deef; }
+.pass-level-track i { display: block; width: 68%; height: 100%; border-radius: inherit; background: #666f83; }
+.pass-body { display: flex; flex-direction: column; gap: 8px; }
 .pass-numbers { display: flex; margin: 0; padding: 10px 0; }
 .pass-numbers div { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 0 24px; border-right: 1px solid #ddd; }
 .pass-numbers div:first-child { padding-left: 16px; }
 .pass-numbers div:last-child { border-right: 0; }
 .pass-numbers dd { margin: 0; font-size: 24px; font-weight: 500; line-height: 33px; color: #000; }
 .pass-numbers dt { font-size: 13px; line-height: 18px; color: #a1a1a1; white-space: nowrap; }
-.pass-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.pass-card { position: relative; background: #f4f4f4; border-radius: 18px; padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; text-align: left; }
-.pass-card small { display: flex; align-items: center; gap: 4px; font-size: 13px; color: #a1a1a1; }
+.pass-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 0; }
+.pass-card { position: relative; background: #f4f4f4; border-radius: 18px; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.pass-card > span { display: flex; flex-direction: column; min-width: 0; }
+.pass-card small { display: flex; align-items: center; gap: 4px; font-size: 12px; line-height: 16px; color: #a1a1a1; }
 .pass-card small .asset { width: 12px; height: 12px; }
-.pass-card strong { font-size: 20px; font-weight: 600; letter-spacing: -0.4px; color: #1b2240; }
-.pass-card em { font-style: normal; font-size: 12px; color: #989aa0; }
-.pass-card:has(.pass-card-go) { padding-right: 32px; }
-.pass-card-go { position: absolute; right: 4px; top: 50%; width: 24px !important; height: 24px !important; transform: translateY(-50%); filter: brightness(0) invert(0.62); }
-.stamps-head { display: flex; align-items: baseline; justify-content: space-between; margin-top: 4px; }
-.stamps-head h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.4px; color: #1b2240; }
-.stamps-head button { font-size: 14px; color: #a1a1a1; }
-.stamp-strip { display: flex; align-items: center; padding: 6px 4px 4px; }
-.pass-stamp-btn { flex: none; width: 64.8px; margin-right: -25px; transform: rotate(var(--tilt, 0deg)); transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
-.pass-stamp-btn .stamp-art { width: 64.8px; }
+.pass-card strong { font-size: 20px; font-weight: 600; line-height: 27px; color: #1b2240; }
+.pass-card em { font-style: normal; font-size: 12px; line-height: 16px; color: #989aa0; }
+.pass-card.next-trip small { margin-bottom: 8px; }
+.pass-card.next-trip { flex-direction: row; align-items: center; justify-content: space-between; padding: 12px 4px 12px 16px; }
+.pass-card .pass-card-go { width: 24px; height: 24px; flex: none; filter: brightness(0) invert(0.62); }
+.stamps-head { display: flex; align-items: center; justify-content: space-between; }
+.stamps-head h2 { margin: 0; font-size: 20px; font-weight: 500; line-height: 27px; color: #000; }
+.stamps-head button { font-size: 14px; font-weight: 500; line-height: 19px; color: #a1a1a1; }
+.stamp-strip { display: flex; align-items: center; min-height: 104px; overflow: visible; padding: 0 4px; }
+.pass-stamp-btn { flex: none; display: flex; justify-content: center; width: calc(64.8px * cos(var(--tilt, 0deg)) + 97.24px * max(sin(var(--tilt, 0deg)), -1 * sin(var(--tilt, 0deg)))); margin-right: -25px; transform: rotate(var(--tilt, 0deg)); transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.pass-stamp-btn .stamp-art { flex: none; width: 64.8px; }
+.pass-stamp-btn .stamp-title { font-size: 9.26cqw; line-height: 1; }
 .pass-stamp-btn:has(+ .future-stamp) { margin-right: 0; }
 .pass-stamp-btn:hover { transform: rotate(0deg) translateY(-6px) scale(1.04); z-index: 1; }
 .pass-stamp-btn:active { transform: rotate(0deg) scale(0.96); }
@@ -1449,19 +1472,20 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .amount-edit {
   position: absolute;
   left: 100%;
-  top: 50%;
-  translate: 12px -50%;
-  width: 32px;
-  height: 32px;
+  top: 16px;
+  translate: 6px -6px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: #f1f2f5;
-  transition: transform 0.15s ease-out, background-color 0.2s;
+  transition: transform 0.15s ease-out;
 }
-.amount-edit:hover { background: #e7e9ef; }
-.amount-edit:active { transform: scale(0.92); }
-.amount-edit img { width: 14px; height: 14px; opacity: 0.55; }
+.amount-edit:active, .item-edit:active { transform: scale(0.88); }
+.amount-edit img { width: 16px; height: 16px; }
+.bill-name { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.bill-name input { min-width: 0; max-width: 211px; field-sizing: content; padding: 0; border: 0; background: transparent; outline: none; font-size: 16px; font-weight: 600; color: #000; }
+.item-edit { flex: none; width: 24px; height: 24px; margin-right: -6px; display: grid; place-items: center; transition: transform 0.15s ease-out; }
+.item-edit img { width: 12px; height: 12px; }
 .share-field {
   display: inline-flex;
   align-items: baseline;
@@ -1768,13 +1792,9 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .widget-row.next em { color: #1a2138; font-weight: 600; }
 .home-row { position: absolute; left: 26px; top: 262px; display: flex; gap: 28px; }
 .widget-map, .app-tile { position: relative; }
-.widget-map .widget-card { width: 164px; height: 164px; }
+.widget-map .widget-card { width: 163.67px; height: 163.67px; }
 .widget-map-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.widget-map-shot { position: absolute; left: calc(50% - 15.15px); top: calc(50% + 96.83px); width: 289.374px; height: 463.6px; max-width: none; object-fit: cover; transform: translate(-50%, -50%); }
-.widget-map-route { position: absolute; max-width: none; }
-.widget-map-route.past { left: -94.84px; top: -111.86px; width: 342.189px; height: 183.867px; }
-.widget-map-route.next { left: 80.44px; top: 44.81px; width: 256.593px; height: 189.758px; }
-.widget-map-here { position: absolute; left: 66.23px; top: 57.18px; width: 28.432px; height: 28.432px; }
+.widget-map-shot { position: absolute; left: -33px; top: -30px; width: 233px; height: 194px; max-width: none; object-fit: cover; }
 .widget-map-panel {
   position: absolute;
   left: 12px;
@@ -1782,16 +1802,17 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   bottom: 12px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 4px 8px 8px;
+  gap: 6px;
+  padding: 8px 8px 10px;
   background: #fff;
   border: 1px solid rgba(208, 214, 227, 0.7);
   border-radius: 16px;
 }
 .widget-map-panel > span:first-child { height: 18px; display: flex; justify-content: space-between; align-items: center; }
-.widget-map-panel b { color: #000; font-size: 12px; font-weight: 600; }
-.widget-map-panel em { color: #6f768b; font-size: 10px; font-style: normal; font-weight: 600; }
+.widget-map-panel b { color: #000; font-size: 12px; font-weight: 500; }
+.widget-map-panel em { color: #6f768b; font-size: 12px; font-style: normal; font-weight: 400; }
 .widget-map-panel .segments { gap: 3px; }
+.widget-map-panel .segments i, .widget-map-panel .segments b { border-radius: 2px; }
 .app-tile { gap: 6px; }
 .app-icon {
   position: relative;
@@ -1965,7 +1986,7 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   width: 100%;
   aspect-ratio: 64.8066 / 97.2412;
   container-type: inline-size;
-  filter: var(--shadow, drop-shadow(0 4px 4px rgba(0, 0, 0, 0.2)) drop-shadow(0 -4px 7px rgba(0, 0, 0, 0.1)));
+  filter: var(--shadow, drop-shadow(0 4px 3.5px rgba(0, 0, 0, 0.1)) drop-shadow(0 -4px 3.5px rgba(0, 0, 0, 0.08)));
 }
 .stamp-art > .stamp-photo,
 .stamp-art > .stamp-grain {
@@ -1980,13 +2001,13 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .stamp-wash {
   background: url("/assets/passport/noise-paper.png") 0 0 / 100% 100%;
   mix-blend-mode: soft-light;
-  opacity: 0.92;
+  opacity: 1;
 }
 .stamp-tooth {
   background: url("/assets/passport/noise-fine.png") 0 0 / 96px 96px;
   mix-blend-mode: overlay;
-  opacity: 0.72;
-  filter: contrast(1.15);
+  opacity: 0.88;
+  filter: contrast(1.28);
 }
 .stamp-art > .stamp-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
 .stamp-title {
@@ -2021,6 +2042,13 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   font-size: 4.6cqw;
   line-height: 1.1;
   color: #111;
+}
+.stamp-face .stamp-name,
+.stamp-back-head strong {
+  align-self: stretch;
+  width: 100%;
+  white-space: nowrap;
+  text-align: center;
 }
 .stamp-hint { margin: 0; max-width: 240px; text-align: center; font-size: 13px; color: #5e6678; }
 

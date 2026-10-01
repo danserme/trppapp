@@ -1,9 +1,40 @@
-import { useRef, useState, type CSSProperties, type PointerEvent } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react"
 import { inYear, passportStamps, photosForStamp, stampYear, tokyoDays, trips, tripYear, type Stamp } from "../data"
 import { useStore } from "../state"
 import { BackButton } from "./chrome"
 
 const stampPhotos: Record<string, string> = Object.fromEntries(["amsterdam", "munich", "porto", "paris", "lisbon"].map((id) => [id, `/assets/passport/stamps/${id}.jpg`]))
+
+function useFitLine<T extends HTMLElement>(text: string, on: boolean) {
+  const ref = useRef<T>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || !on) return
+    const fit = () => {
+      el.style.fontSize = ""
+      el.style.width = "max-content"
+      const textWidth = el.scrollWidth
+      el.style.width = ""
+      const box = el.clientWidth
+      const max = parseFloat(getComputedStyle(el).fontSize)
+      if (!box || !max || !textWidth) return
+      const target = box * 0.98
+      if (textWidth <= target) return
+      el.style.fontSize = `${Math.max(12, (max * target) / textWidth)}px`
+    }
+    fit()
+    const box = el.parentElement ?? el
+    const observer = new ResizeObserver(fit)
+    observer.observe(box)
+    document.fonts?.ready.then(fit)
+    return () => {
+      observer.disconnect()
+      el.style.fontSize = ""
+      el.style.width = ""
+    }
+  }, [text, on])
+  return ref
+}
 
 function useStampLook(stamp: Stamp) {
   const { state } = useStore()
@@ -18,14 +49,22 @@ export function StampArt({ stamp, photo, className = "", style }: { stamp: Stamp
   const look = useStampLook(stamp)
   const cover = photo ?? look.cover
   const title = look.title
+  const big = className.split(" ").includes("stamp-face")
+  const nameRef = useFitLine<HTMLSpanElement>(title, big)
+  const photoRef = useRef<HTMLImageElement>(null)
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    const img = photoRef.current
+    setReady(!!img && img.complete && img.naturalWidth > 0)
+  }, [cover])
   return (
     <span className={`stamp-art ${className}`} style={style}>
-      <img className="stamp-photo" src={cover} alt="" draggable={false} />
-      <span className="stamp-grain stamp-wash" />
-      <span className="stamp-grain stamp-tooth" />
+      <img ref={photoRef} className="stamp-photo" src={cover} alt="" draggable={false} onLoad={() => setReady(true)} />
+      {ready && <span className="stamp-grain stamp-wash" />}
+      {ready && <span className="stamp-grain stamp-tooth" />}
       <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
       <span className="stamp-title">
-        {title}
+        <span className="stamp-name" ref={nameRef}>{title}</span>
         <em>{stamp.date}</em>
       </span>
     </span>
@@ -58,62 +97,77 @@ export function PassportPanel() {
           <img className="asset" src="/assets/icons/pencil.svg" alt="" />
         </button>
       </header>
-      <dl className="pass-numbers">
-        <div>
-          <dd>{new Set(stamps.map((stamp) => stamp.country)).size}</dd>
-          <dt>Countries</dt>
+      <div className="pass-level">
+        <div className="pass-level-row">
+          <strong>65% to Explorer Lv5</strong>
+          <span>2 more cities</span>
         </div>
-        <div>
-          <dd>{stamps.length}</dd>
-          <dt>Cities</dt>
+        <div className="pass-level-track" aria-hidden="true">
+          <i />
         </div>
-        <div>
-          <dd>{nights}</dd>
-          <dt>Nights away</dt>
-        </div>
-      </dl>
-      <div className="pass-cards">
-        <article className="pass-card">
-          <small>
-            <img className="asset" src="/assets/passport/plane.svg" alt="" /> Furthest hop
-          </small>
-          <strong>AMS → LIS</strong>
-          <em>1,860 km · TU 834</em>
-        </article>
-        <button type="button" className="pass-card" onClick={() => dispatch({ type: "open-trip", trip: "tokyo" })}>
-          <small>Next trip</small>
-          <strong>Tokyo</strong>
-          <em>Nov 11 · in 42 days</em>
-          <img className="asset pass-card-go" src="/assets/passport/chevron.svg" alt="" />
-        </button>
       </div>
-      <div className="stamps-head">
-        <h2>Stamps created</h2>
-        <button type="button" onClick={() => setAll((open) => !open)}>
-          {all ? "Collapse" : "Expand"}
-        </button>
-      </div>
-      <div className={all ? "stamp-strip all" : "stamp-strip"} data-vaul-no-drag>
-        {covers.length === 0 && !showTokyo && <p className="stamps-empty">No stamps from {state.year} yet.</p>}
-        {covers.map((stamp) => (
-          <button
-            key={stamp.id}
-            type="button"
-            className="pass-stamp-btn"
-            aria-label={`${stamp.city} stamp`}
-            style={{ "--tilt": `${stamp.tilt}deg` } as CSSProperties}
-            onClick={() => dispatch({ type: "stamp", id: stamp.id })}
-          >
-            <StampArt stamp={stamp} />
+      <div className="pass-body">
+        <dl className="pass-numbers">
+          <div>
+            <dd>{new Set(stamps.map((stamp) => stamp.country)).size}</dd>
+            <dt>Countries</dt>
+          </div>
+          <div>
+            <dd>{stamps.length}</dd>
+            <dt>Cities</dt>
+          </div>
+          <div>
+            <dd>{nights}</dd>
+            <dt>Nights away</dt>
+          </div>
+        </dl>
+        <div className="pass-cards">
+          <article className="pass-card">
+            <small>
+              <img className="asset" src="/assets/passport/plane.svg" alt="" /> Furthest hop
+            </small>
+            <span>
+              <strong>AMS → LIS</strong>
+              <em>1,860 km · TU 834</em>
+            </span>
+          </article>
+          <button type="button" className="pass-card next-trip" onClick={() => dispatch({ type: "open-trip", trip: "tokyo" })}>
+            <span>
+              <small>Next trip is in 42 days</small>
+              <strong>Tokyo</strong>
+              <em>Nov 11</em>
+            </span>
+            <img className="asset pass-card-go" src="/assets/passport/chevron.svg" alt="" />
           </button>
-        ))}
-        {showTokyo && (
-          <button type="button" className="future-stamp" aria-label="Tokyo stamp, pending" onClick={() => dispatch({ type: "toast", toast: "Your Tokyo stamp reveals when the trip ends." })}>
-            <strong>Tokyo</strong>
-            <span>pending</span>
-            <span>{tokyoDays[0].label}</span>
+        </div>
+        <div className="stamps-head">
+          <h2>Stamps created</h2>
+          <button type="button" onClick={() => setAll((open) => !open)}>
+            {all ? "Collapse" : "Expand"}
           </button>
-        )}
+        </div>
+        <div className={all ? "stamp-strip all" : "stamp-strip"} data-vaul-no-drag>
+          {covers.length === 0 && !showTokyo && <p className="stamps-empty">No stamps from {state.year} yet.</p>}
+          {covers.map((stamp) => (
+            <button
+              key={stamp.id}
+              type="button"
+              className="pass-stamp-btn"
+              aria-label={`${stamp.city} stamp`}
+              style={{ "--tilt": `${stamp.tilt}deg` } as CSSProperties}
+              onClick={() => dispatch({ type: "stamp", id: stamp.id })}
+            >
+              <StampArt stamp={stamp} />
+            </button>
+          ))}
+          {showTokyo && (
+            <button type="button" className="future-stamp" aria-label="Tokyo stamp, pending" onClick={() => dispatch({ type: "toast", toast: "Your Tokyo stamp reveals when the trip ends." })}>
+              <strong>Tokyo</strong>
+              <span>pending</span>
+              <span>{tokyoDays[0].label}</span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -130,6 +184,7 @@ export function StampViewer() {
 function StampStage({ stamp }: { stamp: Stamp }) {
   const { dispatch } = useStore()
   const { photos, title } = useStampLook(stamp)
+  const nameRef = useFitLine<HTMLElement>(title, true)
   const [turn, setTurn] = useState({ y: 0, x: 0 })
   const [dragging, setDragging] = useState(false)
   const drag = useRef<{ x: number; y: number; from: number; lastX: number; lastT: number; speed: number; moved: boolean } | null>(null)
@@ -193,7 +248,7 @@ function StampStage({ stamp }: { stamp: Stamp }) {
             </span>
             <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
             <span className="stamp-back-head">
-              <strong>{title}</strong>
+              <strong ref={nameRef}>{title}</strong>
               <em>{stamp.date}</em>
             </span>
           </div>

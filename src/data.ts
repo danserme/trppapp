@@ -728,8 +728,8 @@ function arc([x1, y1]: LngLat, [x2, y2]: LngLat): LngLat[] {
   const bend = 0.22
   const cx = (x1 + x2) / 2 - dy * bend
   const cy = (y1 + y2) / 2 + dx * bend
-  return Array.from({ length: 33 }, (_, index) => {
-    const t = index / 32
+  return Array.from({ length: 161 }, (_, index) => {
+    const t = index / 160
     const u = 1 - t
     return [u * u * x1 + 2 * u * t * cx + t * t * x2, u * u * y1 + 2 * u * t * cy + t * t * y2] as LngLat
   })
