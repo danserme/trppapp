@@ -21,7 +21,8 @@ export function StampArt({ stamp, photo, className = "", style }: { stamp: Stamp
   return (
     <span className={`stamp-art ${className}`} style={style}>
       <img className="stamp-photo" src={cover} alt="" draggable={false} />
-      <span className="stamp-grain" />
+      <span className="stamp-grain stamp-wash" />
+      <span className="stamp-grain stamp-tooth" />
       <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
       <span className="stamp-title">{title}</span>
     </span>
