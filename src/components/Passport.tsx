@@ -135,7 +135,7 @@ export function PassportPanel() {
             <span>
               <small>Next trip is in 42 days</small>
               <strong>Tokyo</strong>
-              <em>Nov 11</em>
+              <em>11 Nov – 16 Nov, 2026</em>
             </span>
             <img className="asset pass-card-go" src="/assets/passport/chevron.svg" alt="" />
           </button>

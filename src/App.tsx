@@ -91,7 +91,7 @@ function Phone() {
     state.overlay === "new-trip" ||
     state.gallery
   const showTabs = !fullPage && !(state.tab === "trips" && state.mode === "map" && state.snap !== PEEK)
-  const snapPx = screen ? Math.round(screen.clientHeight * state.snap) : 318
+  const snapPx = screen ? screen.clientHeight * state.snap : 318
   const focus: MapFocus =
     state.tab === "passport"
       ? state.stamp
