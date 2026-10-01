@@ -3,8 +3,8 @@ import { isPastTrip, parsedTickets, passportStamps, pastExpenses, tickets, trips
 import { PEEK, TALL, TODAY, dayStops, isPastDay, person, place, tripRange, useStore } from "../state"
 import { FriendsPanel } from "./screens"
 import { PassportPanel } from "./Passport"
-import { DaySegments, Face, PhotoStack, SwipeRow } from "./chrome"
-import { ActivityIcon, IconChevron, IconLocate, IconPencil, IconPin, IconPlus, IconTrash } from "./icons"
+import { AvatarStack, DaySegments, Face, PhotoStack, SwipeRow } from "./chrome"
+import { ActivityIcon, IconChevron, IconLocate, IconPencil, IconPlus, IconTrash } from "./icons"
 import { mapPaths, stopKey } from "../mapPaths"
 
 export function TripDrawer() {
@@ -319,7 +319,7 @@ function TripSheetBody() {
     if (done || tab === "photos") photoRef.current?.click()
     else if (tab === "expenses") dispatch({ type: "overlay", overlay: "bill" })
     else if (tab === "docs") fileRef.current?.click()
-    else dispatch({ type: "overlay", overlay: "poll", anchor: gap?.id ?? null, voting: false })
+    else dispatch({ type: "overlay", overlay: "poll", anchor: gap?.id ?? null, voting: true })
   }
 
   function sharePhoto(file: File) {
@@ -810,6 +810,16 @@ function payer(item: Expense) {
   return item.paidBy === "you" ? "you" : (person(item.paidBy)?.name.split(" ")[0] ?? item.paidBy)
 }
 
+const money = (value: number) => `${Number.isInteger(value) ? value : value.toFixed(2).replace(".", ",")} €`
+const cents = (value: number) => Math.round(value * 100) / 100
+
+function stake(item: Expense, settled: boolean) {
+  const share = cents(item.amount / item.split)
+  if (settled) return { tone: "", text: `your share ${money(share)}` }
+  if (item.paidBy === "you") return { tone: "lent", text: `you lent ${money(cents(item.amount - share))}` }
+  return { tone: "owe", text: `you owe ${money(share)}` }
+}
+
 function Expenses({ items: all, settled = false }: { items: Expense[]; settled?: boolean }) {
   const { state, dispatch } = useStore()
   const [filter, setFilter] = useState<ExpenseFilter>("all")
@@ -841,9 +851,12 @@ function Expenses({ items: all, settled = false }: { items: Expense[]; settled?:
           </>
         ) : (
           <>
-            <p>You are owed by {state.summary.owedBy.length} people</p>
+            <p className="owed-by">
+              <AvatarStack ids={state.summary.owedBy.map((item) => item.id)} size={20} />
+              You are owed by {state.summary.owedBy.length} people
+            </p>
             <div className="owed-row">
-              <strong>{state.summary.owed} €</strong>
+              <strong>{money(state.summary.owed)}</strong>
               <button type="button" onClick={() => dispatch({ type: "sheet", sheet: "balances" })}>
                 Balances <IconChevron />
               </button>
@@ -853,7 +866,7 @@ function Expenses({ items: all, settled = false }: { items: Expense[]; settled?:
         <div className="stats">
           <span>
             <small>Group total</small>
-            {total} €
+            {money(total)}
           </span>
           <span>
             <small>Expenses</small>
@@ -861,7 +874,7 @@ function Expenses({ items: all, settled = false }: { items: Expense[]; settled?:
           </span>
           <span>
             <small>You paid</small>
-            {mine} €
+            {money(mine)}
           </span>
         </div>
       </div>
@@ -922,22 +935,25 @@ function Expenses({ items: all, settled = false }: { items: Expense[]; settled?:
         <section key={day}>
           <div className="expense-day">
             <span>{day}</span>
-            <b>{items.reduce((sum, item) => sum + item.amount, 0)} €</b>
+            <b>{money(items.reduce((sum, item) => sum + item.amount, 0))}</b>
           </div>
-          {items.map((item) => (
-            <div key={item.id} className="expense-row">
-              <div className="expense-main">
-                <small>paid by {payer(item)}</small>
-                <span>
-                  <IconPin /> {item.title}
-                </span>
+          {items.map((item) => {
+            const mine = stake(item, settled)
+            return (
+              <div key={item.id} className="expense-row">
+                <div className="expense-main">
+                  <span>{item.title}</span>
+                  <small>
+                    {item.paidBy === "you" ? "You" : payer(item)} paid · split {item.split} ways
+                  </small>
+                </div>
+                <div className="expense-amt">
+                  <strong>{money(item.amount)}</strong>
+                  <em className={mine.tone}>{mine.text}</em>
+                </div>
               </div>
-              <div className="expense-amt">
-                <em>split in {item.split}</em>
-                <strong>{item.amount} €</strong>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </section>
       ))}
     </div>
@@ -1078,7 +1094,6 @@ export function BalancesSheet() {
     <div className="sub-layer">
       <button type="button" className="scrim" aria-label="Close balances" onClick={() => dispatch({ type: "back" })} />
       <div className="sub-sheet" role="dialog" aria-label="Balances">
-        <span className="handle" />
         <header className="trip-head">
           <h1>Balances</h1>
         </header>
