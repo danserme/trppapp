@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type CSSProperties } from "react"
 import QRCode from "qrcode"
 import { DayPicker } from "react-day-picker"
 import "react-day-picker/style.css"
@@ -22,7 +22,7 @@ import { dayStops, isPastDay, person, shortDate, tripRange, useStore } from "../
 import { AvatarStack, BackButton, CheckRow, Face, SwipeRow, Toolbar } from "./chrome"
 import { CurrentTripCard } from "./TripSheet"
 import { StampArt } from "./Passport"
-import { IconChevron, IconList, IconPencil, IconPlus, IconSearch, IconShare, IconTrash } from "./icons"
+import { IconChevron, IconClose, IconList, IconPencil, IconPlace, IconPlus, IconSearch, IconShare, IconTrash } from "./icons"
 
 function tripShots(ids: string[], covers: Record<string, string>, shared: SharedPhoto[]) {
   const stamps = ids.flatMap((id) => passportStamps.filter((item) => item.id === id))
@@ -178,7 +178,7 @@ export function InviteScreen() {
     <div className="page invite">
       <header className="invite-head">
         <BackButton onClick={() => dispatch({ type: "back" })} />
-        <h1>Add Members</h1>
+        <h1>Add members</h1>
         <span />
       </header>
       <div className="invite-hero">
@@ -304,14 +304,7 @@ export function PollComposer() {
   const defaultStatus = Number((editing ? existing!.from : (gapFrom ?? "20.00")).split(".")[0]) >= 18 ? "dinner" : "visit"
   const [status, setStatus] = useState(editing ? (existing!.status ?? defaultStatus) : defaultStatus)
   const [place, setPlace] = useState("")
-  const [options, setOptions] = useState<{ id: string; name: string }[]>(
-    editing
-      ? existing!.options.map((option) => ({
-          id: option.id,
-          name: option.name ?? savedPlaces.find((item) => item.id === option.id)?.name ?? option.id,
-        }))
-      : [],
-  )
+  const [options, setOptions] = useState<{ id: string; name: string }[]>([])
   const [draft, setDraft] = useState("")
   const [showVoters, setShowVoters] = useState(existing?.showVoters ?? true)
   const [multiple, setMultiple] = useState(existing?.multiple ?? true)
@@ -368,143 +361,191 @@ export function PollComposer() {
         <span />
       </header>
       <div className="composer-scroll">
-        <div className="composer-top">
-          <button type="button" className="switch-row" aria-pressed={voting} onClick={() => setVoting((value) => !value)}>
-            <Toggle on={voting} />
-            Decide by voting
+        <div className="mode-seg" role="radiogroup" aria-label="How to decide">
+          <i className={voting ? "thumb" : "thumb right"} aria-hidden="true" />
+          <button type="button" role="radio" aria-checked={voting} onClick={() => setVoting(true)}>
+            <i className="icon-mask poll-icon" aria-hidden="true" /> Open poll
           </button>
-          <ActivityPicker value={status} onChange={setStatus} />
+          <button type="button" role="radio" aria-checked={!voting} onClick={() => setVoting(false)}>
+            <IconPlace /> Pick a place
+          </button>
         </div>
-        <label className="question-field">
-          <input
-            className="question"
-            aria-label={voting ? "Question" : "Title"}
-            value={question}
-            enterKeyHint="done"
-            placeholder={voting ? "Ask the group, e.g. Where should we eat?" : "Give it a title"}
-            onFocus={(event) => event.currentTarget.select()}
-            onChange={(event) => setQuestion(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur()
-            }}
-          />
-          {question && (
-            <button type="button" className="clear" aria-label="Clear question" onClick={() => setQuestion("")}>
-              ×
-            </button>
-          )}
-        </label>
-        <div className="when-box">
-          <div className="when-days" role="radiogroup" aria-label="Day">
-            {tripDays(state.trip).map((day) => (
-              <button
-                key={day.id}
-                type="button"
-                role="radio"
-                aria-checked={date === day.label}
-                disabled={isPastDay(day.id)}
-                className={date === day.label ? "on" : ""}
-                onClick={() => setDate(day.label)}
-              >
-                <small>{day.dow}</small>
-                <strong>{day.date.split(" ")[0]}</strong>
-              </button>
-            ))}
+        <section className="form-section">
+          <div className="form-label">
+            <span>{voting ? "Question" : "What"}</span>
           </div>
-        </div>
-        <div className="time-pair">
-          <TimeField label="From" value={from} onChange={setFrom} />
-          <span className="time-span">{duration(from, to)}</span>
-          <TimeField label="Until" value={to} onChange={setTo} />
-        </div>
-        <h2>{voting ? "Options" : "Place"}</h2>
-        <div className="option-box">
-          {voting ? (
-            <>
-              <label className="option-entry">
+          <label className="question-field">
+            <input
+              className="question"
+              aria-label={voting ? "Question" : "Title"}
+              value={question}
+              enterKeyHint="done"
+              placeholder={voting ? "e.g. Where should we eat?" : "Give it a title"}
+              onFocus={(event) => event.currentTarget.select()}
+              onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur()
+              }}
+            />
+            {question && (
+              <button type="button" className="clear" aria-label="Clear question" onClick={() => setQuestion("")}>
+                <IconClose />
+              </button>
+            )}
+          </label>
+        </section>
+        <section className="form-section">
+          <div className="form-label">
+            <span>When</span>
+          </div>
+          <div className="when-box">
+            <div className="when-days" role="radiogroup" aria-label="Day">
+              {tripDays(state.trip).map((day) => (
+                <button
+                  key={day.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={date === day.label}
+                  disabled={isPastDay(day.id)}
+                  className={date === day.label ? "on" : ""}
+                  onClick={() => setDate(day.label)}
+                >
+                  <small>{day.dow}</small>
+                  <strong>{day.date.split(" ")[0]}</strong>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="time-row">
+            <div className="time-range" title={duration(from, to)}>
+              <img className="asset" src="/assets/icons/clock.svg" alt="" />
+              <span>From</span>
+              <TimeValue label="From" value={from} onChange={setFrom} />
+              <span>to</span>
+              <TimeValue label="Until" value={to} onChange={setTo} />
+            </div>
+            <ActivityPicker value={status} onChange={setStatus} />
+          </div>
+        </section>
+        <section className="form-section">
+          <div className="form-label">
+            <span>{voting ? `Options${options.length ? ` · ${options.length}` : ""}` : "Where"}</span>
+          </div>
+          <div className="option-box">
+            <label className="option-entry">
+              <IconPlace />
+              {voting ? (
                 <input
                   value={draft}
-                  placeholder="Paste link or type an address or a name"
+                  placeholder="Paste a link, address or name"
+                  enterKeyHint="done"
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") addDraft()
                   }}
                 />
-              </label>
-              {options.map((option) => (
-                <div key={option.id} className="option-added">
-                  <span>{option.name}</span>
-                  <button type="button" aria-label={`Remove ${option.name}`} onClick={() => togglePlace(option.id, option.name)}>
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <button type="button" className="text-btn" onClick={addDraft}>
-                <IconPlus /> Add an option
-              </button>
-            </>
-          ) : (
-            <label className="option-entry">
-              <input
-                value={place}
-                placeholder="Paste link or type an address or a name"
-                onChange={(event) => setPlace(event.target.value)}
-              />
+              ) : (
+                <input value={place} placeholder="Paste a link, address or name" onChange={(event) => setPlace(event.target.value)} />
+              )}
+              {((voting && draft) || (!voting && place)) && (
+                <button
+                  type="button"
+                  className="clear"
+                  aria-label={voting ? "Clear option" : "Clear place"}
+                  onClick={() => (voting ? setDraft("") : setPlace(""))}
+                >
+                  <IconClose />
+                </button>
+              )}
             </label>
-          )}
-        </div>
-        <div className="saved-head">
-          <span>
-            Add from saved <img className="asset" src="/assets/icons/bookmark.svg" alt="" />
-          </span>
-          <button type="button">View all</button>
-        </div>
-        <div className="saved-row" data-vaul-no-drag>
-          {pool.length === 0 && (
-            <p className="saved-empty">
-              <strong>No saved places in {city} yet</strong>
-              <em>Bookmark spots on the map and they show up here.</em>
-            </p>
-          )}
-          {voting && pool.length > 0 && unsaved.length === 0 && (
-            <p className="saved-empty">
-              <strong>All saved places are in</strong>
-              <em>Remove an option above to bring it back here.</em>
-            </p>
-          )}
-          {(voting ? unsaved : pool).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={!voting && place.trim().toLowerCase() === item.name.toLowerCase() ? "saved on" : "saved"}
-              onClick={() => (voting ? togglePlace(item.id, item.name) : setPlace((current) => (current.trim().toLowerCase() === item.name.toLowerCase() ? "" : item.name)))}
-            >
-              <img src={item.photo} alt="" />
-              <span>
-                <strong>{item.name}</strong>
-                <em>{item.detail}</em>
-                <small>
-                  {item.rating} <img src="/assets/icons/stars.svg" alt="" />
-                </small>
-              </span>
-            </button>
-          ))}
-        </div>
+            {voting &&
+              options.map((option) => {
+                const photo = savedPlaces.find((item) => item.id === option.id)?.photo
+                return (
+                  <div key={option.id} className="option-added">
+                    {photo ? <img src={photo} alt="" /> : (
+                      <i className="option-pin" aria-hidden="true">
+                        <IconPlace />
+                      </i>
+                    )}
+                    <span>{option.name}</span>
+                    <button type="button" className="clear" aria-label={`Remove ${option.name}`} onClick={() => togglePlace(option.id, option.name)}>
+                      <IconClose />
+                    </button>
+                  </div>
+                )
+              })}
+          </div>
+        </section>
+        <section className="form-section">
+          <div className="form-label">
+            <span>Your saved places</span>
+            <button type="button">View all</button>
+          </div>
+          <div className="saved-row" role={voting ? undefined : "radiogroup"} aria-label="Saved places" data-vaul-no-drag>
+            {pool.length === 0 && (
+              <p className="saved-empty">
+                <strong>No saved places in {city} yet</strong>
+                <em>Bookmark spots on the map and they show up here.</em>
+              </p>
+            )}
+            {voting && pool.length > 0 && unsaved.length === 0 && (
+              <p className="saved-empty">
+                <strong>All saved places are in</strong>
+                <em>Remove an option above to bring it back here.</em>
+              </p>
+            )}
+            {(voting ? unsaved : pool).map((item) => {
+              const on = !voting && place.trim().toLowerCase() === item.name.toLowerCase()
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role={voting ? undefined : "radio"}
+                  aria-checked={voting ? undefined : on}
+                  className={on ? "saved on" : "saved"}
+                  onClick={() => (voting ? togglePlace(item.id, item.name) : setPlace((current) => (current.trim().toLowerCase() === item.name.toLowerCase() ? "" : item.name)))}
+                >
+                  <span className="saved-photo">
+                    <img src={item.photo} alt="" />
+                    {voting ? (
+                      <i className="saved-badge" aria-hidden="true">
+                        <img className="asset" src="/assets/icons/plus.svg" alt="" />
+                      </i>
+                    ) : (
+                      <i className={on ? "saved-radio on" : "saved-radio"} aria-hidden="true" />
+                    )}
+                  </span>
+                  <strong>{item.name}</strong>
+                  <em>{item.detail}</em>
+                  <small>
+                    <i className="stars" style={{ "--fill": `${(Number(item.rating) / 5) * 100}%` } as CSSProperties} aria-label={`${item.rating} out of 5`} />
+                    {item.rating}
+                  </small>
+                </button>
+              )
+            })}
+          </div>
+        </section>
         {voting && (
           <>
-            <h2>Settings</h2>
-            <div className="settings">
-              <Setting label="Show who voted" on={showVoters} onClick={() => setShowVoters((value) => !value)} />
-              <Setting label="Allow multiple answers" on={multiple} onClick={() => setMultiple((value) => !value)} />
-              <Setting label="Allow adding more options" on={allowAdd} onClick={() => setAllowAdd((value) => !value)} />
-              <Setting label="Allow revoting" on={revoting} onClick={() => setRevoting((value) => !value)} />
-            </div>
+            <section className="form-section">
+              <div className="form-label">
+                <span>Poll settings</span>
+              </div>
+              <div className="settings">
+                <Setting label="Show who voted" on={showVoters} onClick={() => setShowVoters((value) => !value)} />
+                <Setting label="Allow multiple answers" on={multiple} onClick={() => setMultiple((value) => !value)} />
+                <Setting label="Allow adding more options" on={allowAdd} onClick={() => setAllowAdd((value) => !value)} />
+                <Setting label="Allow revoting" on={revoting} onClick={() => setRevoting((value) => !value)} />
+              </div>
+            </section>
           </>
         )}
       </div>
       <Toolbar>
         <button type="button" className="add-btn glass" onClick={save}>
-          {voting ? "Save poll" : "Add to itinerary"}
+          {voting ? "Save poll" : "Save"}
         </button>
       </Toolbar>
     </div>
@@ -544,10 +585,9 @@ function openPicker(event: { currentTarget: HTMLInputElement }) {
   }
 }
 
-function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function TimeValue({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="time-field">
-      <small>{label}</small>
+    <label className="time-value">
       <b>{value}</b>
       <input
         type="time"
@@ -562,7 +602,7 @@ function TimeField({ label, value, onChange }: { label: string; value: string; o
 
 const firstName = (id: string) => (id === "ari" ? "Ari" : (person(id)?.name.split(" ")[0] ?? id))
 
-const euro = (value: number) => `${value.toFixed(2).replace(".", ",")}€`
+const euro = (value: number) => `${value.toFixed(2).replace(".", ",")} €`
 
 export function BillScreen() {
   const { state, dispatch } = useStore()
@@ -674,6 +714,7 @@ export function BillScreen() {
               const sum = item.qty * item.price
               return (
                 <li key={item.id} className="bill-item">
+                  <span className="bill-qty">{item.qty}×</span>
                   <div className="bill-row">
                     <label className="bill-name">
                       <input
@@ -694,19 +735,14 @@ export function BillScreen() {
                         <img src="/assets/icons/pencil-grey-sm.svg" alt="" />
                       </button>
                     </label>
-                    <button type="button" aria-label={`Split ${item.name}`} onClick={() => dispatch({ type: "split", open: true })}>
-                      <AvatarStack ids={state.splitIds.slice(0, 2)} extra={Math.max(splitCount - 2, 0)} size={22} />
-                    </button>
+                    <b className="bill-sum">{euro(sum)}</b>
                   </div>
-                  <div className="bill-figures">
-                    <div>
-                      <span>{euro(item.price)}</span>
-                      <small>x{item.qty}</small>
-                    </div>
-                    <div className="bill-total">
-                      <b>{euro(sum)}</b>
-                      <small>{euro(sum / splitCount)}/person</small>
-                    </div>
+                  <div className="bill-row bill-meta">
+                    <span>{item.qty > 1 ? `${euro(item.price)} each` : "1 item"}</span>
+                    <button type="button" className="bill-split" aria-label={`Split ${item.name}, ${euro(sum / splitCount)} per person`} onClick={() => dispatch({ type: "split", open: true })}>
+                      <AvatarStack ids={state.splitIds.slice(0, 2)} extra={Math.max(splitCount - 2, 0)} size={22} />
+                      <b>{euro(sum / splitCount)}</b>
+                    </button>
                   </div>
                 </li>
               )
@@ -764,7 +800,6 @@ export function BillScreen() {
         <div className="split-layer">
           <button type="button" className="scrim" aria-label="Close split" onClick={() => dispatch({ type: "split", open: false })} />
           <div className="split-sheet">
-            <span className="handle" />
             <h2>Split between</h2>
             <ul className="member-list checks">
               {[...state.members, "ren"].map((id) => (
@@ -1057,8 +1092,13 @@ export function EditTrip() {
             <li key={id}>
               <Face id={id} />
               <span>{person(id)?.name}</span>
-              <button type="button" className="remove" onClick={() => setMembers((list) => list.filter((item) => item !== id))}>
-                Remove
+              <button
+                type="button"
+                className="member-remove"
+                aria-label={`Remove ${person(id)?.name ?? id}`}
+                onClick={() => setMembers((list) => list.filter((item) => item !== id))}
+              >
+                <IconClose />
               </button>
             </li>
           ))}
@@ -1141,91 +1181,108 @@ export function NewTrip() {
     <div className="page edit-page">
       <header className="invite-head">
         <BackButton onClick={() => dispatch({ type: "back" })} />
-        <h1>New trip</h1>
+        <h1>Add trip</h1>
         <span />
       </header>
-      <div className="edit-field">
-        <span>{cities.length > 1 ? `Cities · ${cities.length}` : "Destination"}</span>
-        <ol className="city-list">
-          {cities.map((city, index) => (
-            <li key={city.id} className="city-row">
-              {cities.length > 1 && <b aria-hidden="true">{index + 1}</b>}
-              <input
-                ref={(el) => {
-                  if (el) cityInputs.current.set(city.id, el)
-                  else cityInputs.current.delete(city.id)
-                }}
-                value={city.name}
-                aria-label={`City ${index + 1}`}
-                placeholder={index === 0 ? "City or country" : "Next city"}
-                enterKeyHint={index === cities.length - 1 ? "next" : undefined}
-                onChange={(event) => setCities((list) => list.map((item) => (item.id === city.id ? { ...item, name: event.target.value } : item)))}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && index === cities.length - 1 && city.name.trim()) addCity()
+      <div className="form-stack">
+        <section className="form-section">
+          <div className="form-label">
+            <span>{cities.length > 1 ? `Where · ${cities.length} cities` : "Where"}</span>
+          </div>
+          <ol className="city-list">
+            {cities.map((city, index) => (
+              <li key={city.id} className="city-row">
+                {cities.length > 1 && <b aria-hidden="true">{index + 1}</b>}
+                <input
+                  ref={(el) => {
+                    if (el) cityInputs.current.set(city.id, el)
+                    else cityInputs.current.delete(city.id)
+                  }}
+                  value={city.name}
+                  aria-label={`City ${index + 1}`}
+                  placeholder={index === 0 ? "City or country" : "Next city"}
+                  enterKeyHint={index === cities.length - 1 ? "next" : undefined}
+                  onChange={(event) => setCities((list) => list.map((item) => (item.id === city.id ? { ...item, name: event.target.value } : item)))}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && index === cities.length - 1 && city.name.trim()) addCity()
+                  }}
+                />
+                {cities.length > 1 && (
+                  <button
+                    type="button"
+                    className="city-remove"
+                    aria-label={`Remove ${city.name.trim() || `city ${index + 1}`}`}
+                    onClick={() => setCities((list) => list.filter((item) => item.id !== city.id))}
+                  >
+                    <IconClose />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ol>
+          <button type="button" className="add-row" onClick={addCity}>
+            <IconPlus /> Add another city
+          </button>
+        </section>
+        <section className="form-section">
+          <div className="form-label">
+            <span>When</span>
+          </div>
+          <button type="button" className={calendarOpen ? "date-range open" : "date-range"} aria-expanded={calendarOpen} onClick={() => setCalendarOpen((open) => !open)}>
+            <img className="asset" src="/assets/icons/calendar.svg" alt="" />
+            <b className={start ? "" : "placeholder"}>{start ? (end ? tripRange(start, end) : `${shortDate(start)} – pick an end date`) : "Pick dates"}</b>
+            <em>{nights > 0 ? `${nights} nights` : ""}</em>
+          </button>
+          {calendarOpen && (
+            <div className="calendar-card compact">
+              <DayPicker
+                mode="range"
+                weekStartsOn={1}
+                defaultMonth={start ? fromIso(start) : new Date(2026, 10)}
+                disabled={{ before: new Date(2026, 9, 1) }}
+                selected={start ? { from: fromIso(start), to: end ? fromIso(end) : undefined } : undefined}
+                onSelect={(range) => {
+                  setStart(range?.from ? toIso(range.from) : "")
+                  setEnd(range?.to ? toIso(range.to) : "")
                 }}
               />
-              {cities.length > 1 && (
-                <button
-                  type="button"
-                  className="city-remove"
-                  aria-label={`Remove ${city.name.trim() || `city ${index + 1}`}`}
-                  onClick={() => setCities((list) => list.filter((item) => item.id !== city.id))}
-                >
-                  <span aria-hidden="true">×</span>
+              <div className="calendar-ok">
+                <button type="button" disabled={!start} onClick={() => setCalendarOpen(false)}>
+                  OK
                 </button>
-              )}
-            </li>
-          ))}
-        </ol>
-        <button type="button" className="add-row" onClick={addCity}>
-          <IconPlus /> Add city
-        </button>
-      </div>
-      <label className="edit-field">
-        <span>Trip name</span>
-        <input value={title} placeholder={place ? (named.length > 1 ? `e.g. ${place}` : `e.g. Weekend in ${place}`) : "Name your trip"} onChange={(event) => setTitle(event.target.value)} />
-      </label>
-      <div className="edit-field">
-        <span>Dates</span>
-        <button type="button" className={calendarOpen ? "date-range open" : "date-range"} aria-expanded={calendarOpen} onClick={() => setCalendarOpen((open) => !open)}>
-          <img className="asset" src="/assets/icons/calendar.svg" alt="" />
-          <b>{start ? (end ? tripRange(start, end) : `${shortDate(start)} – pick an end date`) : "Pick dates"}</b>
-          <em>{nights > 0 ? `${nights} nights` : ""}</em>
-        </button>
-        {calendarOpen && (
-          <div className="calendar-card compact">
-            <DayPicker
-              mode="range"
-              weekStartsOn={1}
-              defaultMonth={start ? fromIso(start) : new Date(2026, 10)}
-              disabled={{ before: new Date(2026, 9, 1) }}
-              selected={start ? { from: fromIso(start), to: end ? fromIso(end) : undefined } : undefined}
-              onSelect={(range) => {
-                setStart(range?.from ? toIso(range.from) : "")
-                setEnd(range?.to ? toIso(range.to) : "")
-              }}
-            />
-            <div className="calendar-ok">
-              <button type="button" disabled={!start} onClick={() => setCalendarOpen(false)}>
-                OK
-              </button>
+              </div>
             </div>
+          )}
+        </section>
+        <section className="form-section">
+          <div className="form-label">
+            <span>Details</span>
+            <small>Optional</small>
           </div>
-        )}
-      </div>
-      <SavedListField value={savedList} onChange={setSavedList} />
-      <div className="edit-field">
-        <span>Invite · {members.length} picked</span>
-        <ul className="member-list checks">
-          {people.map((id) => (
-            <CheckRow
-              key={id}
-              id={id}
-              on={members.includes(id)}
-              onClick={() => setMembers((list) => (list.includes(id) ? list.filter((item) => item !== id) : [...list, id]))}
-            />
-          ))}
-        </ul>
+          <div className="details-card">
+            <label className="details-row">
+              <span>Trip name</span>
+              <input value={title} placeholder={place ? (named.length > 1 ? place : `Weekend in ${place}`) : "Name your trip"} onChange={(event) => setTitle(event.target.value)} />
+            </label>
+            <SavedListField value={savedList} onChange={setSavedList} />
+          </div>
+        </section>
+        <section className="form-section">
+          <div className="form-label">
+            <span>Who’s coming{members.length > 0 ? ` · ${members.length + 1}` : ""}</span>
+            {members.length > 0 && <AvatarStack ids={["ari", ...members].slice(0, 3)} extra={Math.max(0, members.length - 2)} size={22} />}
+          </div>
+          <ul className="member-list checks invite-card">
+            {people.map((id) => (
+              <CheckRow
+                key={id}
+                id={id}
+                on={members.includes(id)}
+                onClick={() => setMembers((list) => (list.includes(id) ? list.filter((item) => item !== id) : [...list, id]))}
+              />
+            ))}
+          </ul>
+        </section>
       </div>
       <Toolbar>
         <button type="button" className="add-btn glass" onClick={create}>
