@@ -256,7 +256,7 @@ function ActivityPicker({ value, onChange }: { value: string; onChange: (value: 
   return (
     <div className="activity-pick" ref={root}>
       <button type="button" className="activity-trigger" aria-label="Activity type" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
-        {capital(value)}
+        <span>{capital(value)}</span>
         <IconChevron dark />
       </button>
       {open && (
@@ -361,18 +361,15 @@ export function PollComposer() {
         <span />
       </header>
       <div className="composer-scroll">
-        <div className="mode-seg" role="radiogroup" aria-label="How to decide">
-          <i className={voting ? "thumb" : "thumb right"} aria-hidden="true" />
-          <button type="button" role="radio" aria-checked={voting} onClick={() => setVoting(true)}>
-            <i className="icon-mask poll-icon" aria-hidden="true" /> Open poll
-          </button>
-          <button type="button" role="radio" aria-checked={!voting} onClick={() => setVoting(false)}>
-            <IconPlace /> Pick a place
-          </button>
-        </div>
-        <section className="form-section">
-          <div className="form-label">
-            <span>{voting ? "Question" : "What"}</span>
+        <div className="composer-main">
+          <div className="mode-seg" role="radiogroup" aria-label="How to decide">
+            <i className={voting ? "thumb" : "thumb right"} aria-hidden="true" />
+            <button type="button" role="radio" aria-checked={voting} onClick={() => setVoting(true)}>
+              <i className="icon-mask poll-icon" aria-hidden="true" /> Open poll
+            </button>
+            <button type="button" role="radio" aria-checked={!voting} onClick={() => setVoting(false)}>
+              <IconPlace /> Pick a place
+            </button>
           </div>
           <label className="question-field">
             <input
@@ -380,7 +377,7 @@ export function PollComposer() {
               aria-label={voting ? "Question" : "Title"}
               value={question}
               enterKeyHint="done"
-              placeholder={voting ? "e.g. Where should we eat?" : "Give it a title"}
+              placeholder={voting ? "What should we eat for dinner?" : "Give it a title"}
               onFocus={(event) => event.currentTarget.select()}
               onChange={(event) => setQuestion(event.target.value)}
               onKeyDown={(event) => {
@@ -393,11 +390,6 @@ export function PollComposer() {
               </button>
             )}
           </label>
-        </section>
-        <section className="form-section">
-          <div className="form-label">
-            <span>When</span>
-          </div>
           <div className="when-box">
             <div className="when-days" role="radiogroup" aria-label="Day">
               {tripDays(state.trip).map((day) => (
@@ -411,7 +403,7 @@ export function PollComposer() {
                   onClick={() => setDate(day.label)}
                 >
                   <small>{day.dow}</small>
-                  <strong>{day.date.split(" ")[0]}</strong>
+                  <strong>{day.date}</strong>
                 </button>
               ))}
             </div>
@@ -426,7 +418,7 @@ export function PollComposer() {
             </div>
             <ActivityPicker value={status} onChange={setStatus} />
           </div>
-        </section>
+        </div>
         <section className="form-section">
           <div className="form-label">
             <span>{voting ? `Options${options.length ? ` · ${options.length}` : ""}` : "Where"}</span>
