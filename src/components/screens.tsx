@@ -360,7 +360,7 @@ export function PollComposer() {
         <h1>Add to itinerary</h1>
         <span />
       </header>
-      <div className="composer-scroll">
+      <div className="composer-body">
         <div className="composer-main">
           <div className="mode-seg" role="radiogroup" aria-label="How to decide">
             <i className={voting ? "thumb" : "thumb right"} aria-hidden="true" />
@@ -469,7 +469,7 @@ export function PollComposer() {
               })}
           </div>
         </section>
-        <section className="form-section">
+        <section className="form-section saved-section">
           <div className="form-label">
             <span>Your saved places</span>
             <button type="button">View all</button>
@@ -534,12 +534,12 @@ export function PollComposer() {
             </section>
           </>
         )}
+        <Toolbar>
+          <button type="button" className="add-btn glass" onClick={save}>
+            {voting ? "Save poll" : "Save"}
+          </button>
+        </Toolbar>
       </div>
-      <Toolbar>
-        <button type="button" className="add-btn glass" onClick={save}>
-          {voting ? "Save poll" : "Save"}
-        </button>
-      </Toolbar>
     </div>
   )
 }
