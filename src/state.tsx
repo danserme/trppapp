@@ -128,7 +128,7 @@ const initial: State = {
   search: "",
   billAmount: "148",
   billPlace: "Pizzeria La Spiga",
-  billDate: "07/10/26",
+  billDate: "2026-10-07",
   billPayer: "ari",
   splitIds: ["john", "ben", "irene", "menta"],
   locateTick: 0,

@@ -168,7 +168,7 @@ html[data-mode="app"] #root {
     0 10px 28px -8px rgba(14, 26, 54, 0.2);
   transition: transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1), box-shadow 0.2s ease;
 }
-:root[data-refract] .glass { backdrop-filter: url(#liquid-glass) var(--glass-filter); }
+:root[data-refract] .glass { backdrop-filter: var(--glass-lens, url(#liquid-glass)) var(--glass-filter); }
 button.glass:active { transform: scale(0.94); }
 @media (prefers-reduced-motion: reduce) {
   .glass { transition: none; }
@@ -1150,8 +1150,7 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   top: 0;
   z-index: 3;
   margin: 0 -20px;
-  padding: 62px 20px 28px;
-  background: linear-gradient(180deg, #fff calc(100% - 20px), rgba(255, 255, 255, 0));
+  padding: 62px 20px 4px;
 }
 .list-top .filters { margin: 12px 0 8px; }
 .trip-card {
@@ -1248,7 +1247,9 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .stamps-head { display: flex; align-items: center; justify-content: space-between; }
 .stamps-head h2 { margin: 0; font-size: 20px; font-weight: 500; line-height: 27px; color: #000; }
 .stamps-head button { font-size: 14px; font-weight: 500; line-height: 19px; color: #a1a1a1; }
-.stamp-strip { display: flex; align-items: center; min-height: 104px; overflow: visible; padding: 0 4px; }
+.stamp-strip { display: flex; align-items: center; min-height: 104px; overflow: visible; padding: 0; }
+/* Optical alignment: the tilted first stamp's paper starts inside its box, so pull it to the heading's edge. */
+.stamp-strip:not(.all) .pass-stamp-btn:first-child { margin-left: -5px; }
 .pass-stamp-btn { flex: none; display: flex; justify-content: center; width: calc(64.8px * cos(var(--tilt, 0deg)) + 97.24px * max(sin(var(--tilt, 0deg)), -1 * sin(var(--tilt, 0deg)))); margin-right: -25px; transform: rotate(var(--tilt, 0deg)); transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
 .pass-stamp-btn .stamp-art { flex: none; width: 64.8px; }
 .pass-stamp-btn .stamp-title { font-size: 9.26cqw; line-height: 1; }
@@ -1260,6 +1261,8 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   width: 80px;
   height: 80px;
   margin-left: auto;
+  /* Optical alignment: a circle has to overshoot the Expand label's edge slightly to look flush with it. */
+  margin-right: -3px;
   border: 1px solid #bdc1d4;
   border-radius: 50%;
   display: flex;
@@ -1281,12 +1284,21 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .stamp-strip.all .pass-stamp-btn { margin-right: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; width: auto; }
 .stamp-strip.all .future-stamp { margin: 0; align-self: center; }
 .page.invite, .page.composer, .page.edit-page { background: #fff; }
-.invite-hero { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 28px 0 4px; }
+.invite-hero { display: flex; flex-direction: column; align-items: center; gap: 16px; margin: 20px 0 8px; }
+.invite .invite-sub { margin-top: 32px; }
+.qr-card { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 22px 22px 14px; border-radius: 28px; background: #fff; box-shadow: 0 0 0 1px #eef0f4, 0 12px 28px -16px rgba(14, 26, 54, 0.22); }
 .invite .qr { width: 150px; margin: 0; background: transparent; }
 .invite .qr svg { width: 150px; height: 150px; display: block; background: transparent; }
-.link-copy { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; color: #494949; font-size: 12px; font-weight: 300; }
-.share { background: #ededed; color: #000; font-weight: 400; font-size: 15px; padding: 12px 15px; border-radius: 34px; margin: 4px auto 0; }
-.invite .hint { color: #5e6678; font-size: 14px; font-weight: 400; margin: 28px 0 0; text-align: center; }
+.link-copy { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; padding: 6px 10px; border-radius: 999px; color: #5e6678; font-size: 13px; font-weight: 500; }
+@media (hover: hover) and (pointer: fine) { .link-copy:hover { background: #f4f5f7; } }
+.link-copy-icon { position: relative; display: grid; width: 14px; height: 14px; }
+.link-copy-icon .asset { grid-area: 1 / 1; width: 14px; height: 14px; filter: brightness(0) invert(0.45); transition: opacity 200ms ease-out, transform 200ms cubic-bezier(0.23, 1, 0.32, 1), filter 200ms ease-out; }
+/* Copied: the copy glyph blurs out as the check scales in, so the swap reads as one icon changing. */
+.link-copy-icon .asset + .asset { opacity: 0; transform: scale(0.6); filter: brightness(0) invert(0.45) blur(2px); }
+.link-copy.copied .link-copy-icon .asset:first-child { opacity: 0; transform: scale(0.6); filter: brightness(0) invert(0.45) blur(2px); }
+.link-copy.copied .link-copy-icon .asset + .asset { opacity: 1; transform: none; filter: brightness(0) invert(0.45); }
+.share { display: inline-flex; align-items: center; gap: 8px; background: #f1f2f5; color: #000; font-weight: 500; font-size: 15px; padding: 12px 18px; border-radius: 34px; margin: 0; }
+.invite .hint { color: #5e6678; font-size: 14px; font-weight: 400; margin: 16px 0 0; padding: 0 4px; text-align: left; }
 .invite h2 { font-size: 20px; font-weight: 600; margin: 28px 0 4px; }
 .invite .search-field { border-radius: 26px; }
 .member-list.checks li { padding: 0; border-bottom-color: rgba(198, 198, 198, 0.5); }
@@ -1348,7 +1360,7 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .form-section { display: flex; flex-direction: column; gap: 10px; }
 .form-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 20px; padding: 0 4px; }
 .form-label > span { font-size: 14px; font-weight: 500; color: #8f8f8f; }
-.form-label > button:not(.activity-trigger) { font-size: 14px; font-weight: 500; color: #2b59f0; }
+.form-label > button:not(.activity-trigger) { font-size: 14px; font-weight: 500; color: #a1a1a1; }
 .form-label .activity-pick { margin: -8px 0; }
 .form-label .activity-trigger { height: 32px; font-size: 13px; }
 .mode-seg { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 15px; background: #eee; isolation: isolate; }
@@ -1567,31 +1579,23 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .calendar-card .rdp-chevron { fill: #1b2240; width: 18px; height: 18px; }
 
 .bill { background: #fff; }
-.amount { display: flex; justify-content: center; margin: 24px 0 16px; color: #000; }
+.amount { display: flex; justify-content: center; margin: 8px 0 12px; color: #000; line-height: 1; }
 .amount-value { position: relative; display: inline-flex; align-items: baseline; gap: 6px; }
 .amount input {
   font-family: Inter, sans-serif;
   font-size: 64px;
   font-weight: 500;
+  line-height: 1;
+  /* Inputs keep a normal line box regardless of line-height, so pin the height to the digits. */
+  height: 64px;
   letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
   width: auto;
   text-align: right;
   field-sizing: content;
 }
-.amount span { font-family: Inter, sans-serif; font-size: 64px; font-weight: 500; }
-.amount-edit {
-  position: absolute;
-  left: 100%;
-  top: 16px;
-  translate: 6px -6px;
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  transition: transform 0.15s ease-out;
-}
-.amount-edit:active, .item-edit:active { transform: scale(0.88); }
-.amount-edit img { width: 16px; height: 16px; }
+.amount span { font-family: Inter, sans-serif; font-size: 64px; font-weight: 500; line-height: 1; color: #a1a1a1; }
+.item-edit:active { transform: scale(0.88); }
 .bill-name { display: flex; align-items: center; gap: 2px; min-width: 0; }
 .bill-name input { min-width: 0; max-width: 211px; field-sizing: content; padding: 0; border: 0; background: transparent; outline: none; font-size: 16px; font-weight: 600; color: #000; }
 .item-edit { flex: none; width: 24px; height: 24px; margin-right: -6px; display: grid; place-items: center; transition: transform 0.15s ease-out; }
@@ -1615,23 +1619,36 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .share-left { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 8px 0 0; font-size: 13px; color: #d4453a; }
 .share-left.ok { color: #5e6678; }
 .share-left button { font-size: 13px; font-weight: 600; color: #2b59f0; }
-.paid-by { display: flex; justify-content: center; align-items: center; gap: 12px; color: #000; font-weight: 600; font-size: 16px; }
+.paid-by { display: flex; justify-content: center; align-items: center; }
 .payer {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  padding: 0 10px 0 7px;
+  height: 40px;
+  padding: 0 12px 0 7px;
   border-radius: 999px;
-  box-shadow: inset 0 0 0 1px #c5cad3;
-  font-weight: 400;
+  background: #f4f4f4;
+  color: #000;
+  font-size: 16px;
+  font-weight: 600;
 }
-.payer .asset { width: 20px; height: 20px; transform: rotate(90deg); }
-.bill .when { margin-top: 24px; }
-.bill .when label { font-size: 16px; min-width: 0; }
-.bill .when .when-span { flex: 1; }
-.bill .when-span input { width: 100%; min-width: 0; text-overflow: ellipsis; }
+.payer small { margin-right: 2px; font-size: 16px; font-weight: 500; color: #8f8f8f; }
+.payer[aria-expanded="true"] { background: #eceef2; }
+.payer .asset { width: 16px; height: 16px; opacity: 0.55; transform: rotate(90deg); transition: transform 0.2s ease; }
+.payer[aria-expanded="true"] .asset { transform: rotate(-90deg); }
 .split-title { margin: 28px 0 8px; font-size: 20px; font-weight: 600; }
+/* Date and place sit under "Paid by" as the same kind of pill, so the amount block reads as one summary. */
+.bill-when { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
+.bill-pick { position: relative; flex: none; }
+.meta-pill { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px 0 12px; border-radius: 999px; background: #f4f4f4; color: #000; font-size: 15px; font-weight: 500; white-space: nowrap; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, box-shadow 160ms ease; }
+.meta-pill .asset { flex: none; width: 16px; height: 16px; filter: brightness(0) invert(0.55); }
+button.meta-pill:active { transform: scale(0.96); }
+.meta-pill[aria-expanded="true"], .place-pill:focus-within { background: #fff; box-shadow: inset 0 0 0 1.5px #2b59f0; }
+.place-pill { min-width: 0; cursor: text; }
+.place-pill input { min-width: 64px; max-width: 170px; field-sizing: content; padding: 0; border: 0; background: transparent; outline: none; font: inherit; color: inherit; text-overflow: ellipsis; }
+.place-pill input::placeholder { color: #a6a6a6; }
+.bill-cal { position: absolute; z-index: 5; top: calc(100% + 8px); left: 50%; translate: -50% 0; }
+.bill-cal .rdp-selected .rdp-day_button { border: 0; background: #2b59f0; color: #fff; font-weight: 600; }
 .bill .seg { gap: 4px; padding: 0; margin: 0 -8px; }
 .bill .seg button { padding: 8px 12px; }
 .bill-items { list-style: none; margin: 12px 0 0; padding: 0; }
@@ -1782,6 +1799,9 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .details-card { background: #eee; border-radius: 15px; overflow: hidden; }
 .details-row, .details-card .saved-list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 10px 16px 12px; cursor: text; transition: background-color 0.18s ease, box-shadow 0.18s ease; }
 .details-card .saved-list { border-top: 1px solid #fff; }
+/* Rows follow the card's outer corners so their inset focus ring isn't clipped by its overflow. */
+.details-card > :first-child { border-top-left-radius: 15px; border-top-right-radius: 15px; }
+.details-card > :last-child { border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; }
 .details-row > span, .details-card .saved-list > span { font-size: 12px; font-weight: 600; color: #8f8f8f; }
 .details-row input, .details-card .saved-list input { min-height: 26px; padding: 0; border: 0; border-radius: 0; outline: none; background: transparent; box-shadow: none; font-size: 17px; color: #000; }
 .details-row input:focus, .details-card .saved-list input:focus, .details-card .saved-list.invalid input { background: transparent; box-shadow: none; }
@@ -2020,38 +2040,30 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   background: #2b59f0;
   box-shadow: 0 6px 18px rgba(14, 26, 54, 0.22);
 }
+.app-icon-sunrise { position: absolute; left: -109.62px; top: -138.07px; width: 210.34px; height: 210.34px; max-width: none; }
+/* Card is 57.5×71.47 rotated about its centre, which sits at the centre of the 69.34×80.6 box Figma places at (-5.33, -25.6). */
 .app-icon-stamp {
   position: absolute;
-  left: 2px;
-  top: -16px;
-  width: 59px;
-  height: 72.7px;
-  transform: rotate(-9.5deg);
+  left: 0.59px;
+  top: -21.04px;
+  width: 57.5px;
+  height: 71.47px;
+  transform: rotate(-10.29deg);
 }
-.app-icon-paper { position: absolute; inset: 2.27px; background: #fff; }
-.app-icon-dot { position: absolute; width: 4.55px; height: 4.55px; margin: 0; border-radius: 50%; background: #2b59f0; }
-.app-icon-art {
-  position: absolute;
-  left: 7.95px;
-  top: 7.95px;
-  width: 43.2px;
-  height: 44.3px;
-  overflow: hidden;
-  background: linear-gradient(180deg, #ffe3b8, #5280ff);
-}
-.app-icon-sun { position: absolute; left: 5.75px; top: 17.98px; width: 15.9px; height: 15.9px; border-radius: 50%; background: #fff; }
-.app-icon-art img { position: absolute; left: 0; bottom: 0; width: 100%; height: 22.7px; max-width: none; }
+.app-icon-paper { position: absolute; left: -3.97px; top: -0.47px; width: 65.44px; height: 79.41px; max-width: none; }
+.app-icon-art { position: absolute; left: 8.42px; top: 8.42px; width: 40.66px; height: 41.77px; max-width: none; }
 .app-icon-stamp b {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 54.5px;
+  left: 1.78px;
+  top: 50.49px;
+  width: 54px;
   text-align: center;
   color: #2b59f0;
-  font-size: 11.36px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.3px;
+  font-family: Manrope, sans-serif;
+  font-size: 10.165px;
+  font-weight: 800;
+  line-height: normal;
+  letter-spacing: 0.35px;
 }
 .home-search {
   position: absolute;
@@ -2357,6 +2369,7 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   }
   .toggle::after { transition-duration: 0s; }
   .mode-seg .thumb { transition-duration: 0s; }
+  .link-copy-icon .asset, .link-copy-icon .asset + .asset, .link-copy.copied .link-copy-icon .asset:first-child { transform: none; }
   .option-added { transition: opacity 0.2s ease; }
   @starting-style { .option-added { transform: none; } }
 }
@@ -2370,29 +2383,35 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   top: -70px;
   margin: -70px -20px 0;
   padding: 70px 20px 10px;
-  background: rgba(255, 255, 255, 0.82);
-  -webkit-backdrop-filter: blur(18px) saturate(1.8);
-  backdrop-filter: blur(18px) saturate(1.8);
+  background: none;
+}
+/* Scroll-edge blur, like iOS bars: content fades into a frosted band under the header instead of meeting a hard edge.
+   It lives on a pseudo-element so the header itself never becomes the backdrop root of its .glass buttons. */
+.glass-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 -18px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 20px, rgba(255, 255, 255, 0.7) 70%, rgba(255, 255, 255, 0));
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  backdrop-filter: blur(14px) saturate(1.6);
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 30px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 30px), transparent);
+}
+/* My Trips: keep the filter chips on a solid band and start the fade below them, so the selected chip stays crisp. */
+.list-top.glass-bar::before {
+  inset: 0 0 -28px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) calc(100% - 28px), rgba(255, 255, 255, 0));
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 28px), transparent);
 }
 .page.invite .page-bar,
 .page.edit-page .page-bar,
 .page.bill .page-bar,
-.page.composer .page-bar { position: sticky; bottom: 0; margin: 24px -20px 0; background: none; pointer-events: none; }
+.page.composer .page-bar { position: sticky; bottom: 0; margin: 24px -20px 0; padding-bottom: 40px; background: none; pointer-events: none; }
 .page.invite, .page.bill, .page.edit-page, .page.composer { padding-bottom: 0; }
 .page.composer .page-bar > *,
 .page.invite .page-bar > *,
 .page.edit-page .page-bar > *,
 .page.bill .page-bar > * { pointer-events: auto; }
-.page.composer .page-bar .glass,
-.page.invite .page-bar .glass,
-.page.edit-page .page-bar .glass,
-.page.bill .page-bar .glass {
-  box-shadow:
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.75),
-    inset 1.5px 1.5px 0.5px -1px rgba(255, 255, 255, 0.95),
-    inset -1.5px -1.5px 0.5px -1px rgba(255, 255, 255, 0.6),
-    inset 0 -8px 14px -10px rgba(255, 255, 255, 0.7),
-    0 0 0 0.5px rgba(14, 26, 54, 0.1),
-    0 2px 6px rgba(14, 26, 54, 0.06),
-    0 10px 28px -8px rgba(14, 26, 54, 0.2);
-}

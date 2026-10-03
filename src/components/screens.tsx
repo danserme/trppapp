@@ -19,7 +19,7 @@ import {
 } from "../data"
 import { dusk, paper, daylight, type Palette } from "../mapStyle"
 import { dayStops, isPastDay, person, shortDate, tripRange, useStore } from "../state"
-import { AvatarStack, BackButton, CheckRow, Face, SwipeRow, Toolbar } from "./chrome"
+import { AvatarStack, BackButton, CheckRow, Face, SwipeRow, ToolAction, ToolIcon, Toolbar } from "./chrome"
 import { CurrentTripCard } from "./TripSheet"
 import { StampArt } from "./Passport"
 import { IconChevron, IconClose, IconList, IconPencil, IconPlace, IconPlus, IconSearch, IconShare, IconTrash } from "./icons"
@@ -60,7 +60,7 @@ export function TripList() {
   }, [state.filter])
   return (
     <div className="page list-page" ref={page}>
-      <div className="list-top">
+      <div className="list-top glass-bar">
         <header className="page-head">
           <h1>My Trips</h1>
           <button type="button" className="glass-icon glass" aria-label="Show trips on map" onClick={() => dispatch({ type: "mode", mode: "map" })}>
@@ -174,37 +174,24 @@ export function InviteScreen() {
   const query = state.friendQuery.trim().toLowerCase()
   const list = friends.filter((id) => person(id)?.name.toLowerCase().includes(query))
   const picked = state.selectedFriends.filter((id) => !state.members.includes(id)).length
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 1600)
+    return () => clearTimeout(timer)
+  }, [copied])
+  const copy = () => {
+    navigator.clipboard?.writeText(inviteLink).catch(() => undefined)
+    setCopied(true)
+    dispatch({ type: "toast", toast: "Link copied" })
+  }
   return (
     <div className="page invite">
-      <header className="invite-head">
+      <header className="invite-head glass-bar">
         <BackButton onClick={() => dispatch({ type: "back" })} />
         <h1>Add members</h1>
         <span />
       </header>
-      <div className="invite-hero">
-        <div className="qr" dangerouslySetInnerHTML={{ __html: svg }} />
-        <button
-          type="button"
-          className="link-copy"
-          onClick={() => {
-            navigator.clipboard?.writeText(inviteLink).catch(() => undefined)
-            dispatch({ type: "toast", toast: "Link copied" })
-          }}
-        >
-          {inviteLink.replace("https://", "").replace("lisbon-hd", "...hd")}
-          <img className="asset" src="/assets/icons/copy.svg" alt="" />
-        </button>
-        <button
-          type="button"
-          className="share"
-          onClick={() => {
-            navigator.clipboard?.writeText(inviteLink).catch(() => undefined)
-            dispatch({ type: "toast", toast: "Link copied" })
-          }}
-        >
-          <IconShare /> Share group link
-        </button>
-      </div>
       <p className="hint">Invite anyone, even if they are not on TripUp</p>
       <label className="search-field">
         <IconSearch />
@@ -214,6 +201,21 @@ export function InviteScreen() {
           onChange={(event) => dispatch({ type: "friend-query", query: event.target.value })}
         />
       </label>
+      <div className="invite-hero">
+        <div className="qr-card">
+          <div className="qr" dangerouslySetInnerHTML={{ __html: svg }} />
+          <button type="button" className={copied ? "link-copy copied" : "link-copy"} aria-label={copied ? "Link copied" : "Copy invite link"} onClick={copy}>
+            {inviteLink.replace("https://", "").replace("lisbon-hd", "...hd")}
+            <span className="link-copy-icon" aria-hidden="true">
+              <img className="asset" src="/assets/icons/copy.svg" alt="" />
+              <img className="asset" src="/assets/icons/check.svg" alt="" />
+            </span>
+          </button>
+        </div>
+        <button type="button" className="share" onClick={copy}>
+          <IconShare /> Share group link
+        </button>
+      </div>
       <h2 className="invite-sub">Add from your friends list</h2>
       <ul className="member-list checks">
         {list.map((id) => {
@@ -232,9 +234,7 @@ export function InviteScreen() {
         {list.length === 0 && <li className="empty">No friends match “{state.friendQuery}”</li>}
       </ul>
       <Toolbar>
-        <button type="button" className={picked > 0 ? "add-btn glass" : "add-btn glass idle"} onClick={() => dispatch({ type: "add-members" })}>
-          {picked > 1 ? `Add ${picked} members` : "Add member"}
-        </button>
+        <ToolAction label={picked > 1 ? `Add ${picked} members` : "Add member"} icon="plus" idle={picked === 0} onClick={() => dispatch({ type: "add-members" })} />
       </Toolbar>
     </div>
   )
@@ -355,7 +355,7 @@ export function PollComposer() {
 
   return (
     <div className="page composer">
-      <header className="invite-head">
+      <header className="invite-head glass-bar">
         <BackButton onClick={() => dispatch({ type: "back" })} />
         <h1>Add to itinerary</h1>
         <span />
@@ -535,9 +535,7 @@ export function PollComposer() {
           </>
         )}
         <Toolbar>
-          <button type="button" className="add-btn glass" onClick={save}>
-            {voting ? "Save poll" : "Save"}
-          </button>
+          <ToolAction label={voting ? "Save poll" : "Save"} icon="check" onClick={save} />
         </Toolbar>
       </div>
     </div>
@@ -600,11 +598,20 @@ export function BillScreen() {
   const { state, dispatch } = useStore()
   const [splitBy, setSplitBy] = useState<"items" | "exact" | "percent">("items")
   const [payerOpen, setPayerOpen] = useState(false)
+  const [dateOpen, setDateOpen] = useState(false)
+  const dateRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!dateOpen) return
+    const close = (event: PointerEvent) => {
+      if (!dateRef.current?.contains(event.target as Node)) setDateOpen(false)
+    }
+    document.addEventListener("pointerdown", close)
+    return () => document.removeEventListener("pointerdown", close)
+  }, [dateOpen])
   const [itemNames, setItemNames] = useState<Record<string, string>>({})
   const splitCount = Math.max(state.splitIds.length + 1, 1)
   const total = Number(state.billAmount.replace(",", ".")) || 0
   const sharers = ["ari", ...state.splitIds]
-  const amountRef = useRef<HTMLInputElement>(null)
   const [custom, setCustom] = useState<Record<"exact" | "percent", Record<string, string>>>({ exact: {}, percent: {} })
   const evenShare = (id: string) => {
     const whole = splitBy === "exact" ? Math.round(total * 100) : 100
@@ -618,7 +625,7 @@ export function BillScreen() {
   const leftLabel = splitBy === "exact" ? euro(Math.abs(left)) : `${Math.round(Math.abs(left) * 10) / 10}%`
   return (
     <div className="page bill">
-      <header className="invite-head">
+      <header className="invite-head glass-bar">
         <BackButton onClick={() => dispatch({ type: "back" })} />
         <h1>Add bill</h1>
         <span />
@@ -626,7 +633,6 @@ export function BillScreen() {
       <div className="amount">
         <label className="amount-value">
           <input
-            ref={amountRef}
             inputMode="decimal"
             aria-label="Amount"
             value={state.billAmount}
@@ -634,24 +640,14 @@ export function BillScreen() {
             onChange={(event) => dispatch({ type: "bill", patch: { billAmount: event.target.value } })}
           />
           <span>€</span>
-          <button
-            type="button"
-            className="amount-edit"
-            aria-label="Edit amount"
-            onClick={() => {
-              amountRef.current?.focus()
-              amountRef.current?.select()
-            }}
-          >
-            <img src="/assets/icons/pencil-grey.svg" alt="" />
-          </button>
         </label>
       </div>
       <div className="paid-by">
-        Paid by
         <button type="button" className="payer" aria-haspopup="menu" aria-expanded={payerOpen} onClick={() => setPayerOpen((open) => !open)}>
-          <Face id={state.billPayer} size={22} />
-          {firstName(state.billPayer)}
+          <Face id={state.billPayer} size={26} />
+          <span>
+            <small>Paid by</small> {firstName(state.billPayer)}
+          </span>
           <IconChevron />
         </button>
         {payerOpen && (
@@ -676,14 +672,37 @@ export function BillScreen() {
           </div>
         )}
       </div>
-      <div className="when">
-        <label>
-          <img className="asset" src="/assets/icons/calendar.svg" alt="" />
-          <input value={state.billDate} onChange={(event) => dispatch({ type: "bill", patch: { billDate: event.target.value } })} />
-        </label>
-        <label className="when-span">
+      <div className="bill-when">
+        <div className="bill-pick" ref={dateRef}>
+          <button type="button" className="meta-pill" aria-label="Bill date" aria-expanded={dateOpen} onClick={() => setDateOpen((open) => !open)}>
+            <img className="asset" src="/assets/icons/calendar.svg" alt="" />
+            {fromIso(state.billDate).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+          </button>
+          {dateOpen && (
+            <div className="calendar-card compact bill-cal">
+              <DayPicker
+                mode="single"
+                weekStartsOn={1}
+                required
+                defaultMonth={fromIso(state.billDate)}
+                selected={fromIso(state.billDate)}
+                onSelect={(date) => {
+                  dispatch({ type: "bill", patch: { billDate: toIso(date) } })
+                  setDateOpen(false)
+                }}
+              />
+            </div>
+          )}
+        </div>
+        <label className="meta-pill place-pill">
           <img className="asset" src="/assets/icons/place.svg" alt="" />
-          <input value={state.billPlace} onChange={(event) => dispatch({ type: "bill", patch: { billPlace: event.target.value } })} />
+          <input
+            aria-label="Place"
+            value={state.billPlace}
+            placeholder="Add place"
+            enterKeyHint="done"
+            onChange={(event) => dispatch({ type: "bill", patch: { billPlace: event.target.value } })}
+          />
         </label>
       </div>
       <h2 className="split-title">Split by</h2>
@@ -777,16 +796,8 @@ export function BillScreen() {
           )}
         </p>
       )}
-      <Toolbar
-        lead={
-          <button type="button" className="glass-icon glass" aria-label="Scan receipt" onClick={() => dispatch({ type: "toast", toast: "Point the camera at the receipt" })}>
-            <img className="asset" src="/assets/icons/scan.svg" alt="" />
-          </button>
-        }
-      >
-        <button type="button" className="add-btn glass" onClick={() => dispatch({ type: "save-bill" })}>
-          Save bill
-        </button>
+      <Toolbar lead={<ToolIcon label="Scan receipt" icon="scan" onClick={() => dispatch({ type: "toast", toast: "Point the camera at the receipt" })} />}>
+        <ToolAction label="Save bill" icon="check" onClick={() => dispatch({ type: "save-bill" })} />
       </Toolbar>
       {state.splitOpen && (
         <div className="split-layer">
@@ -798,12 +809,9 @@ export function BillScreen() {
                 <CheckRow key={id} id={id} on={state.splitIds.includes(id)} onClick={() => dispatch({ type: "toggle-split", id })} />
               ))}
             </ul>
-            <footer className="sheet-bar">
-              <BackButton onClick={() => dispatch({ type: "split", open: false })} />
-              <button type="button" className="add-btn glass" onClick={() => dispatch({ type: "split", open: false })}>
-                Save
-              </button>
-            </footer>
+            <Toolbar variant="sheet" lead={<ToolIcon label="Back" icon="back" onClick={() => dispatch({ type: "split", open: false })} />}>
+              <ToolAction label="Save" icon="check" onClick={() => dispatch({ type: "split", open: false })} />
+            </Toolbar>
           </div>
         </div>
       )}
@@ -864,9 +872,7 @@ export function TicketScreen() {
         </div>
       </article>
       <Toolbar>
-        <button type="button" className="add-btn glass" onClick={() => dispatch({ type: "toast", toast: "Added to Apple Wallet." })}>
-          Add to Wallet
-        </button>
+        <ToolAction label="Add to Wallet" icon="ticket" onClick={() => dispatch({ type: "toast", toast: "Added to Apple Wallet." })} />
       </Toolbar>
     </div>
   )
@@ -1039,7 +1045,7 @@ export function EditTrip() {
   }
   return (
     <div className="page edit-page">
-      <header className="invite-head">
+      <header className="invite-head glass-bar">
         <BackButton onClick={() => dispatch({ type: "back" })} />
         <h1>Edit trip</h1>
         <span />
@@ -1100,9 +1106,7 @@ export function EditTrip() {
         </button>
       </div>
       <Toolbar>
-        <button type="button" className="add-btn glass" onClick={save}>
-          Save changes
-        </button>
+        <ToolAction label="Save changes" icon="check" onClick={save} />
       </Toolbar>
     </div>
   )
@@ -1171,7 +1175,7 @@ export function NewTrip() {
 
   return (
     <div className="page edit-page">
-      <header className="invite-head">
+      <header className="invite-head glass-bar">
         <BackButton onClick={() => dispatch({ type: "back" })} />
         <h1>Add trip</h1>
         <span />
@@ -1277,9 +1281,7 @@ export function NewTrip() {
         </section>
       </div>
       <Toolbar>
-        <button type="button" className="add-btn glass" onClick={create}>
-          Create trip
-        </button>
+        <ToolAction label="Create trip" icon="plus" onClick={create} />
       </Toolbar>
     </div>
   )

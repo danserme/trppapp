@@ -1,0 +1,22 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="256" height="263" viewBox="0 0 256 263" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Landscape" clip-path="url(#clip0_0_4)">
+<rect id="Sky" width="256" height="263" fill="url(#paint0_linear_0_4)"/>
+<circle id="Sun" cx="81" cy="154" r="47" fill="white"/>
+<g id="Mountains" clip-path="url(#clip1_0_4)">
+<path id="Vector" d="M-1.36137e-07 262.869V208.974L53.8948 161.816L94.3159 195.5L148.211 134.869L208.842 188.763L256 155.079V262.869H-1.36137e-07Z" fill="#15255D"/>
+<path id="Vector_2" d="M128 158.448L148.211 134.869L168.421 153.395L154.947 148.342L148.211 156.763L138.106 150.027L128 158.448Z" fill="white"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_4" x1="128" y1="0" x2="128" y2="263" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFE3B8"/>
+<stop offset="1" stop-color="#5280FF"/>
+</linearGradient>
+<clipPath id="clip0_0_4">
+<rect width="256" height="263" fill="white"/>
+</clipPath>
+<clipPath id="clip1_0_4">
+<rect width="256" height="135" fill="white" transform="translate(0 128)"/>
+</clipPath>
+</defs>
+</svg>

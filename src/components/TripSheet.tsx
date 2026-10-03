@@ -3,8 +3,8 @@ import { isPastTrip, parsedTickets, passportStamps, pastExpenses, tickets, trips
 import { PEEK, TALL, TODAY, dayStops, isPastDay, person, place, tripRange, useStore } from "../state"
 import { FriendsPanel } from "./screens"
 import { PassportPanel } from "./Passport"
-import { AvatarStack, DaySegments, Face, PhotoStack, SwipeRow } from "./chrome"
-import { ActivityIcon, IconChevron, IconLocate, IconPencil, IconPlus, IconTrash } from "./icons"
+import { AvatarStack, DaySegments, Face, PhotoStack, SwipeRow, ToolAction, ToolIcon, Toolbar } from "./chrome"
+import { ActivityIcon, IconChevron, IconLocate, IconPencil, IconTrash } from "./icons"
 import { mapPaths, stopKey } from "../mapPaths"
 
 export function TripDrawer() {
@@ -313,7 +313,7 @@ function TripSheetBody() {
     scroller.scrollTop = Math.max(0, top - peek)
   }, [state.day, tab, state.snap, poll?.question, focus, plans])
   const gap = pastDay ? undefined : plans.find((stop) => stop.kind === "gap")
-  const addLabel = done || tab === "photos" ? "Add photo" : tab === "expenses" ? "Add expense" : tab === "docs" ? "Add document" : "Add to itinerary"
+  const addLabel = done || tab === "photos" ? "Add photo" : tab === "expenses" ? "Add bill" : tab === "docs" ? "Add document" : "Add to itinerary"
 
   function add() {
     if (done || tab === "photos") photoRef.current?.click()
@@ -438,23 +438,12 @@ function TripSheetBody() {
           event.target.value = ""
         }}
       />
-      <footer className="sheet-bar">
-        <button type="button" className="glass-icon glass" aria-label="Back" onClick={() => dispatch({ type: "back" })}>
-          <img className="asset" src="/assets/icons/back.svg" alt="" />
-        </button>
-        <div className="sheet-actions">
-          {tab === "itinerary" && !future && !done && (
-            <button type="button" className="glass-icon glass" aria-label="Edit trip" onClick={() => dispatch({ type: "overlay", overlay: "edit" })}>
-              <img className="asset" src="/assets/icons/pencil.svg" alt="" />
-            </button>
-          )}
-          {(done || (!(tab === "itinerary" && pastDay) && !(tab === "expenses" && future) && !(tab === "photos" && future))) && (
-            <button type="button" className="add-btn glass" onClick={add}>
-              <img className="asset" src="/assets/icons/plus.svg" alt="" /> {addLabel}
-            </button>
-          )}
-        </div>
-      </footer>
+      <Toolbar variant="sheet" lead={<ToolIcon label="Back" icon="back" onClick={() => dispatch({ type: "back" })} />}>
+        {tab === "itinerary" && !future && !done && <ToolIcon label="Edit trip" icon="pencil" onClick={() => dispatch({ type: "overlay", overlay: "edit" })} />}
+        {(done || (!(tab === "itinerary" && pastDay) && !(tab === "expenses" && future) && !(tab === "photos" && future))) && (
+          <ToolAction label={addLabel} icon="plus" onClick={add} />
+        )}
+      </Toolbar>
     </div>
   )
 }
@@ -1074,16 +1063,9 @@ function GroupSheet() {
           })}
         </ul>
       </div>
-      <footer className="sheet-bar">
-        <button type="button" className="glass-icon glass" aria-label="Back" onClick={() => dispatch({ type: "back" })}>
-          <img className="asset" src="/assets/icons/back.svg" alt="" />
-        </button>
-        {!isPastTrip(state.trip) && (
-          <button type="button" className="add-btn glass" onClick={() => dispatch({ type: "overlay", overlay: "invite" })}>
-            <IconPlus /> Add members
-          </button>
-        )}
-      </footer>
+      <Toolbar variant="sheet" lead={<ToolIcon label="Back" icon="back" onClick={() => dispatch({ type: "back" })} />}>
+        {!isPastTrip(state.trip) && <ToolAction label="Add members" icon="plus" onClick={() => dispatch({ type: "overlay", overlay: "invite" })} />}
+      </Toolbar>
     </div>
   )
 }
@@ -1111,14 +1093,9 @@ export function BalancesSheet() {
             )
           })}
         </ul>
-        <footer className="sheet-bar">
-          <button type="button" className="glass-icon glass" aria-label="Back" onClick={() => dispatch({ type: "back" })}>
-            <img className="asset" src="/assets/icons/back.svg" alt="" />
-          </button>
-          <button type="button" className="add-btn glass" onClick={() => dispatch({ type: "toast", toast: "Reminder sent to Ben and Sara." })}>
-            Remind them
-          </button>
-        </footer>
+        <Toolbar variant="sheet" lead={<ToolIcon label="Back" icon="back" onClick={() => dispatch({ type: "back" })} />}>
+          <ToolAction label="Remind them" onClick={() => dispatch({ type: "toast", toast: "Reminder sent to Ben and Sara." })} />
+        </Toolbar>
       </div>
     </div>
   )

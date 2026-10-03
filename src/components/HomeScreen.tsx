@@ -9,26 +9,13 @@ const agenda = [
   { time: "20.00", icon: "/assets/home/w-pin.svg", title: "Dinner · poll 4/5", tone: "next" },
 ] as const
 
-const edgeDots = [
-  ...Array.from({ length: 8 }, (_, i) => [3.41 + i * 6.82, 0]),
-  ...Array.from({ length: 8 }, (_, i) => [3.41 + i * 6.82, 68.18]),
-  ...Array.from({ length: 10 }, (_, i) => [0, 3.41 + i * 6.82]),
-  ...Array.from({ length: 10 }, (_, i) => [54.54, 3.41 + i * 6.82]),
-]
-
 function AppIcon() {
   return (
     <span className="app-icon" aria-hidden="true">
+      <img className="app-icon-sunrise" src="/assets/brand/icon-sunrise.svg" alt="" />
       <span className="app-icon-stamp">
-        <i className="app-icon-paper" />
-        {edgeDots.map(([x, y], index) => (
-          <i key={index} className="app-icon-dot" style={{ left: x, top: y }} />
-        ))}
-        <span className="app-icon-art">
-          <i className="app-icon-sun" />
-          <img src="/assets/home/icon-hill-1.svg" alt="" />
-          <img src="/assets/home/icon-hill-2.svg" alt="" />
-        </span>
+        <img className="app-icon-paper" src="/assets/brand/icon-stamp.svg" alt="" />
+        <img className="app-icon-art" src="/assets/brand/icon-landscape.svg" alt="" />
         <b>TripUp</b>
       </span>
     </span>

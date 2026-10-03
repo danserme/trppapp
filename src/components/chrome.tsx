@@ -327,9 +327,27 @@ export function BackButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-export function Toolbar({ lead, children }: { lead?: ReactNode; children: ReactNode }) {
+// Toolbar buttons shared by the trip drawer and every full-screen page, so both bars read as one component.
+export function ToolIcon({ label, icon, onClick }: { label: string; icon: string; onClick: () => void }) {
   return (
-    <footer className="page-bar">
+    <button type="button" className="glass-icon glass" aria-label={label} onClick={onClick}>
+      <img className="asset" src={`/assets/icons/${icon}.svg`} alt="" />
+    </button>
+  )
+}
+
+export function ToolAction({ label, icon, idle, onClick }: { label: string; icon?: string; idle?: boolean; onClick: () => void }) {
+  return (
+    <button type="button" className={idle ? "add-btn glass idle" : "add-btn glass"} onClick={onClick}>
+      {icon && <img className="asset" src={`/assets/icons/${icon}.svg`} alt="" />} {label}
+    </button>
+  )
+}
+
+// The one bottom toolbar: the trip drawer passes variant="sheet", full-screen pages use the default.
+export function Toolbar({ lead, variant = "page", children }: { lead?: ReactNode; variant?: "sheet" | "page"; children?: ReactNode }) {
+  return (
+    <footer className={variant === "sheet" ? "sheet-bar" : "page-bar"}>
       {lead}
       <div className="sheet-actions">{children}</div>
     </footer>

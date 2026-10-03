@@ -1,0 +1,22 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="40.6602" height="41.772" viewBox="0 0 40.6602 41.772" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Landscape" clip-path="url(#clip0_0_4)">
+<rect id="Sky" width="40.6602" height="41.772" fill="url(#paint0_linear_0_4)"/>
+<circle id="Sun" cx="12.8652" cy="24.4597" r="7.46497" fill="white"/>
+<g id="Mountains" clip-path="url(#clip1_0_4)">
+<path id="Vector" d="M-4.32251e-06 41.7512L-4.32251e-06 33.1912L8.56005 25.7011L14.9801 31.0511L23.5402 21.4211L33.1702 29.9811L40.6602 24.6311V41.7512H-4.32251e-06Z" fill="#15255D"/>
+<path id="Vector_2" d="M20.3302 25.1661L23.5402 21.4211L26.7502 24.3636L24.6102 23.5611L23.5402 24.8986L21.9352 23.8286L20.3302 25.1661Z" fill="white"/>
+</g>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_4" x1="20.3301" y1="0" x2="20.3301" y2="41.772" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFE3B8"/>
+<stop offset="1" stop-color="#5280FF"/>
+</linearGradient>
+<clipPath id="clip0_0_4">
+<rect width="40.6602" height="41.772" fill="white"/>
+</clipPath>
+<clipPath id="clip1_0_4">
+<rect width="40.6602" height="21.4419" fill="white" transform="translate(3.54832e-06 20.3301)"/>
+</clipPath>
+</defs>
+</svg>
