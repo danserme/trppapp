@@ -2207,16 +2207,15 @@ button.meta-pill:active { transform: scale(0.96); }
 }
 .stamp-art > .stamp-photo { object-fit: cover; }
 .stamp-grain { pointer-events: none; }
-.stamp-wash {
-  background: url("/assets/passport/noise-paper.png") 0 0 / 100% 100%;
-  mix-blend-mode: soft-light;
-  opacity: 1;
+/* Figma "noise-stamps": two multitone noise layers, normal blend, sized in the stamp's own space
+   (1 grain = 0.1661px / 3.1867px of the 64.8066px-wide stamp). Tiles are generated in src/noise.ts. */
+.stamp-noise-fine {
+  background: var(--noise-fine) 0 0 / calc(256 * 0.25631cqw) repeat;
+  opacity: 0.25;
 }
-.stamp-tooth {
-  background: url("/assets/passport/noise-fine.png") 0 0 / 96px 96px;
-  mix-blend-mode: overlay;
-  opacity: 0.88;
-  filter: contrast(1.28);
+.stamp-noise-coarse {
+  background: var(--noise-coarse) 0 0 / calc(48 * 4.9173cqw) repeat;
+  opacity: 0.1;
 }
 .stamp-art > .stamp-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
 .stamp-title {

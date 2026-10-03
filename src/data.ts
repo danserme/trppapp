@@ -563,7 +563,7 @@ export const passportStamps: Stamp[] = [
   { id: "berlin", city: "Berlin", country: "Germany", date: "Aug 2026", coord: [13.405, 52.52], tilt: -3.49, image: shot("berlin-1"), photos: [shot("berlin-1"), shot("berlin-2")] },
   { id: "porto", city: "Porto", country: "Portugal", date: "Sep 2026", coord: [-8.6291, 41.1579], tilt: -1.81, image: shot("porto-1"), photos: [shot("porto-1"), shot("porto-2")] },
   { id: "paris", city: "Paris", country: "France", date: "Sep 2026", coord: [2.3522, 48.8566], tilt: -6.65, image: shot("paris-1"), photos: [shot("paris-1"), shot("paris-2")] },
-  { id: "lisbon", city: "Lisbon", country: "Portugal", date: "Oct 2026", coord: [-9.1393, 38.7223], tilt: 0, image: cityPhoto, photos: lisbonPhotos },
+  { id: "lisbon", city: "Lisbon", country: "Portugal", date: "Oct 2026", coord: [-9.1393, 38.7223], tilt: 4.12, image: cityPhoto, photos: lisbonPhotos },
 ]
 
 export const stampYear = (stamp: Stamp) => Number(stamp.date.slice(-4))
