@@ -59,13 +59,15 @@ export function StampArt({ stamp, photo, className = "", style }: { stamp: Stamp
   }, [cover])
   return (
     <span className={`stamp-art ${className}`} style={style}>
-      <img ref={photoRef} className="stamp-photo" src={cover} alt="" draggable={false} onLoad={() => setReady(true)} />
-      {ready && <span className="stamp-grain stamp-noise-fine" />}
-      {ready && <span className="stamp-grain stamp-noise-coarse" />}
-      <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
-      <span className="stamp-title">
-        <span className="stamp-name" ref={nameRef}>{title}</span>
-        <em>{stamp.date}</em>
+      <span className="stamp-body">
+        <img ref={photoRef} className="stamp-photo" src={cover} alt="" draggable={false} onLoad={() => setReady(true)} />
+        {ready && <span className="stamp-grain stamp-noise-fine" />}
+        {ready && <span className="stamp-grain stamp-noise-coarse" />}
+        <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
+        <span className="stamp-title">
+          <span className="stamp-name" ref={nameRef}>{title}</span>
+          <em>{stamp.date}</em>
+        </span>
       </span>
     </span>
   )
@@ -241,15 +243,17 @@ function StampStage({ stamp }: { stamp: Stamp }) {
         <div className={dragging ? "stamp-card dragging" : "stamp-card"} style={style}>
           <StampArt stamp={stamp} className="stamp-face" />
           <div className="stamp-back">
-            <span className="stamp-thumbs">
-              {photos.slice(0, 4).map((src) => (
-                <img key={src} src={src} alt="" draggable={false} />
-              ))}
-            </span>
-            <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
-            <span className="stamp-back-head">
-              <strong ref={nameRef}>{title}</strong>
-              <em>{stamp.date}</em>
+            <span className="stamp-body">
+              <span className="stamp-thumbs">
+                {photos.slice(0, 4).map((src) => (
+                  <img key={src} src={src} alt="" draggable={false} />
+                ))}
+              </span>
+              <img className="stamp-frame" src="/assets/passport/stamp-frame.svg" alt="" draggable={false} />
+              <span className="stamp-back-head">
+                <strong ref={nameRef}>{title}</strong>
+                <em>{stamp.date}</em>
+              </span>
             </span>
           </div>
         </div>

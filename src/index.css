@@ -2252,8 +2252,7 @@ button.meta-pill:active { transform: scale(0.96); }
   -webkit-backface-visibility: hidden;
 }
 .stamp-card .stamp-face { position: absolute; --shadow: drop-shadow(0 20px 28px rgba(14, 26, 54, 0.22)); pointer-events: none; }
-.stamp-back { transform: rotateY(180deg); filter: drop-shadow(0 20px 28px rgba(14, 26, 54, 0.22)); container-type: inline-size; }
-.stamp-back > .stamp-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stamp-back { transform: rotateY(180deg); filter: drop-shadow(0 20px 28px rgba(14, 26, 54, 0.22)); }
 .stamp-back::before { content: ""; position: absolute; left: 9.26%; top: 6.04%; width: 81.78%; height: 75.07%; background: #fff; }
 .stamp-thumbs {
   position: absolute;
@@ -2288,18 +2287,20 @@ button.meta-pill:active { transform: scale(0.96); }
   display: block;
   width: 100%;
   aspect-ratio: 64.8066 / 97.2412;
-  container-type: inline-size;
   filter: var(--shadow, drop-shadow(0 4px 3.5px rgba(0, 0, 0, 0.1)) drop-shadow(0 -4px 3.5px rgba(0, 0, 0, 0.08)));
 }
-.stamp-art > .stamp-photo,
-.stamp-art > .stamp-grain {
+/* Safari clips a drop-shadow to the box of an element that is also a size container,
+   so the shadow stays on the stamp and the container (for the cqw text and grain) moves one layer in. */
+.stamp-body { position: absolute; inset: 0; display: block; container-type: inline-size; }
+.stamp-body > .stamp-photo,
+.stamp-body > .stamp-grain {
   position: absolute;
   left: 6.17%;
   top: 3.09%;
   width: 87.45%;
   height: 87.41%;
 }
-.stamp-art > .stamp-photo { object-fit: cover; }
+.stamp-body > .stamp-photo { object-fit: cover; }
 .stamp-grain { pointer-events: none; }
 /* Figma "noise-stamps": two multitone noise layers, normal blend, sized in the stamp's own space
    (1 grain = 0.1661px / 3.1867px of the 64.8066px-wide stamp). Tiles are generated in src/noise.ts.
@@ -2312,7 +2313,7 @@ button.meta-pill:active { transform: scale(0.96); }
   background: var(--noise-coarse) 0 0 / calc(48 * 4.9173cqw) repeat;
   opacity: 0.07;
 }
-.stamp-art > .stamp-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stamp-body > .stamp-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
 .stamp-title {
   position: absolute;
   left: 50%;
