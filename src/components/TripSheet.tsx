@@ -30,7 +30,7 @@ export function TripDrawer() {
       </SheetFrame>
     )
   return (
-    <SheetFrame hug={state.tripTab === "docs"} view={`trip-${state.tripTab}`} above={photos}>
+    <SheetFrame view={`trip-${state.tripTab}`} above={photos}>
       <TripSheet />
     </SheetFrame>
   )
@@ -210,7 +210,7 @@ export function CurrentTripCard() {
           <img className="hotel-thumb" src="/assets/hotel-baixa.png" alt="" />
           <span>
             <strong>Hotel Da Baixa</strong>
-            <em>22.30–08.00</em>
+            <em>22:30–08:00</em>
           </span>
           <IconChevron />
         </div>
@@ -341,7 +341,7 @@ function TripSheetBody() {
   }
 
   return (
-    <div className={tab === "docs" ? "sheet itinerary hug" : "sheet itinerary"}>
+    <div className="sheet itinerary">
       <span className="handle" />
       <div className="itinerary-col">
         <div className="itinerary-intro">
@@ -364,7 +364,7 @@ function TripSheetBody() {
             ))}
           </div>
           <div className="day-and-plans">
-            {(tab === "itinerary" || (tab === "photos" && !future)) && <DayStrip day={state.day} onPick={(day) => dispatch({ type: "day", day })} />}
+            {tab === "itinerary" && <DayStrip day={state.day} onPick={(day) => dispatch({ type: "day", day })} />}
             <div className={tab === "docs" ? "plans" : "plans masked"} ref={plansRef} data-vaul-no-drag>
               {tab === "itinerary" && (
                 <div className="cards">
@@ -396,7 +396,7 @@ function TripSheetBody() {
                 (future ? (
                   <p className="album-empty">No photos yet. The album opens when the trip starts.</p>
                 ) : (
-                  <Album day={state.day} openId={openPhoto} onOpen={setOpenPhoto} />
+                  <Album openId={openPhoto} onOpen={setOpenPhoto} />
                 ))}
             </div>
           </div>
@@ -949,12 +949,14 @@ function Expenses({ items: all, settled = false }: { items: Expense[]; settled?:
   )
 }
 
-function Album({ day, openId, onOpen }: { day: DayId; openId: string | null; onOpen: (id: string | null) => void }) {
+// Every photo from the trip in one grid, in day order; the day strip only belongs to the itinerary.
+function Album({ openId, onOpen }: { openId: string | null; onOpen: (id: string | null) => void }) {
   const { state } = useStore()
-  const items = state.photos.filter((photo) => photo.day === day)
+  const days = tripDays(state.trip).map((day) => day.id)
+  const items = state.photos.filter((photo) => days.includes(photo.day)).sort((a, b) => days.indexOf(a.day) - days.indexOf(b.day))
   const open = items.find((photo) => photo.id === openId)
   if (open) return <PhotoView photo={open} onClose={() => onOpen(null)} />
-  if (items.length === 0) return <p className="album-empty">No photos from this day yet. Add one and everyone on the trip can see it.</p>
+  if (items.length === 0) return <p className="album-empty">No photos yet. Add one and everyone on the trip can see it.</p>
   return (
     <div className="album">
       {items.map((photo) => {

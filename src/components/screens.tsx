@@ -298,10 +298,10 @@ export function PollComposer() {
   const [voting, setVoting] = useState(state.pollVoting)
   const [question, setQuestion] = useState(editing ? existing!.question : state.pollVoting ? "What should we do?" : "")
   const [gapFrom, gapTo] = dayStops(state.day).find((stop) => stop.kind === "gap")?.time.split("–") ?? []
-  const [from, setFrom] = useState(editing ? existing!.from : (gapFrom ?? "20.00"))
-  const [to, setTo] = useState(editing ? existing!.to : (gapTo ?? "22.00"))
+  const [from, setFrom] = useState(editing ? existing!.from : (gapFrom ?? "20:00"))
+  const [to, setTo] = useState(editing ? existing!.to : (gapTo ?? "22:00"))
   const [date, setDate] = useState(editing ? existing!.date : meta.label)
-  const defaultStatus = Number((editing ? existing!.from : (gapFrom ?? "20.00")).split(".")[0]) >= 18 ? "dinner" : "visit"
+  const defaultStatus = Number((editing ? existing!.from : (gapFrom ?? "20:00")).split(":")[0]) >= 18 ? "dinner" : "visit"
   const [status, setStatus] = useState(editing ? (existing!.status ?? defaultStatus) : defaultStatus)
   const [place, setPlace] = useState("")
   const [options, setOptions] = useState<{ id: string; name: string }[]>([])
@@ -544,7 +544,7 @@ export function PollComposer() {
 
 function duration(from: string, to: string) {
   const minutes = (value: string) => {
-    const [h, m] = value.split(".").map(Number)
+    const [h, m] = value.split(":").map(Number)
     return h * 60 + (m || 0)
   }
   let span = minutes(to) - minutes(from)
@@ -582,9 +582,9 @@ function TimeValue({ label, value, onChange }: { label: string; value: string; o
       <input
         type="time"
         aria-label={`${label} time`}
-        value={value.replace(".", ":")}
+        value={value}
         onClick={openPicker}
-        onChange={(event) => event.target.value && onChange(event.target.value.replace(":", "."))}
+        onChange={(event) => event.target.value && onChange(event.target.value)}
       />
     </label>
   )

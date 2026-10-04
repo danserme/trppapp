@@ -249,7 +249,7 @@ function reducer(state: State, action: Action): State {
     case "sheet":
       return { ...state, sheet: action.sheet, snap: OPEN }
     case "trip-tab":
-      return { ...state, tripTab: action.tab, sheet: "trip", snap: OPEN }
+      return { ...state, tripTab: action.tab, sheet: "trip", snap: state.snap === PEEK ? OPEN : state.snap }
     case "day":
       return { ...state, day: action.day, focusStop: null }
     case "focus-stop":

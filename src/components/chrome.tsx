@@ -13,7 +13,8 @@ import { IconBack } from "./icons"
  * ───────────────────────────────────────────────────────── */
 const ISLAND_APPEAR_MS = 700
 
-type NextUp = { title: string; detail: string; time: string; meta: string; photo?: string }
+// `side` is the one number worth glancing at: the poll's turnout while it's open, otherwise when it starts.
+type NextUp = { label: string; title: string; detail: string; time: string; side: { label: string; value: string; sub: string }; photo?: string }
 
 const titleCase = (text: string) => text[0].toUpperCase() + text.slice(1)
 
@@ -27,15 +28,26 @@ function useNextUp(): NextUp | null {
     const info = place(top.id)
     const name = info?.name ?? top.name ?? "Option"
     const label = poll.status ? titleCase(poll.status) : "Plan"
-    if (poll.decided) return { title: name, detail: label, time: poll.from, meta: `until ${poll.to}`, photo: info?.photo }
+    const { from, to } = poll
+    const when = { label: "Starts", value: from, sub: `until ${to}` }
+    if (poll.decided) return { label: "Up next", title: name, detail: `${label} at ${from}`, time: from, side: when, photo: info?.photo }
     const ballots = new Set(poll.options.flatMap((option) => option.votes)).size
-    return { title: `${label} poll`, detail: `${name} leading`, time: poll.from, meta: `${ballots}/${state.members.length + 1} voted`, photo: info?.photo }
+    const group = state.members.length + 1
+    const missing = group - ballots
+    return {
+      label: "Poll",
+      title: `${label} at ${from}`,
+      detail: `${name} leads`,
+      time: from,
+      side: { label: "Voted", value: `${ballots}/${group}`, sub: missing > 0 ? `${missing} to go` : "everyone in" },
+      photo: info?.photo,
+    }
   }
   const list = dayStops(TODAY)
   const next = list[list.findIndex((stop) => stop.tone === "now") + 1]
   if (!next) return null
   const [from, to] = next.time.split("–")
-  return { title: next.title, detail: titleCase(next.status), time: from, meta: `until ${to}`, photo: next.title === "Hotel Da Baixa" ? "/assets/hotel-baixa.png" : undefined }
+  return { label: "Up next", title: next.title, detail: titleCase(next.status), time: from, side: { label: "Starts", value: from, sub: `until ${to}` }, photo: next.title === "Hotel Da Baixa" ? "/assets/hotel-baixa.png" : undefined }
 }
 
 function LiveActivity({ onOpen }: { onOpen?: () => void }) {
@@ -80,13 +92,14 @@ function LiveActivity({ onOpen }: { onOpen?: () => void }) {
         <span className="island-row">
           {thumb}
           <span className="island-text">
-            <small>Up next</small>
+            <small>{next.label}</small>
             <strong>{next.title}</strong>
             <em>{next.detail}</em>
           </span>
           <span className="island-when">
-            <strong>{next.time}</strong>
-            <em>{next.meta}</em>
+            <small>{next.side.label}</small>
+            <strong>{next.side.value}</strong>
+            <em>{next.side.sub}</em>
           </span>
         </span>
         <span className="island-progress">
@@ -106,7 +119,7 @@ function LiveActivity({ onOpen }: { onOpen?: () => void }) {
 export function StatusBar({ light = false, onOpenTrip }: { light?: boolean; onOpenTrip?: () => void }) {
   return (
     <div className={light ? "status light" : "status"}>
-      <span className="time">9:41</span>
+      <span className="time">17:23</span>
       <LiveActivity onOpen={onOpenTrip} />
       <span className="signals" aria-hidden="true">
         <svg width="17" height="12" viewBox="0 0 17 12">

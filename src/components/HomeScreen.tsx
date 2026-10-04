@@ -4,9 +4,9 @@ import { useStore } from "../state"
 import { DaySegments, StatusBar } from "./chrome"
 
 const agenda = [
-  { time: "15.00", icon: "/assets/home/w-museum.svg", title: "Museum of Arts", tone: "past" },
-  { time: "17.00", icon: "/assets/home/w-hotel.svg", title: "Hotel Da Baixa", tone: "now" },
-  { time: "20.00", icon: "/assets/home/w-pin.svg", title: "Dinner · poll 4/5", tone: "next" },
+  { time: "15:00", icon: "/assets/home/w-museum.svg", title: "Museum of Arts", tone: "past" },
+  { time: "17:00", icon: "/assets/home/w-hotel.svg", title: "Hotel Da Baixa", tone: "now" },
+  { time: "20:00", icon: "/assets/home/w-pin.svg", title: "Dinner · poll 4/5", tone: "next" },
 ] as const
 
 function AppIcon() {
