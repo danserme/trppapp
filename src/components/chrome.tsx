@@ -336,9 +336,11 @@ export function ToolIcon({ label, icon, onClick }: { label: string; icon: string
   )
 }
 
-export function ToolAction({ label, icon, idle, onClick }: { label: string; icon?: string; idle?: boolean; onClick: () => void }) {
+// `primary` marks the action that commits the page (save, create), so it reads as the way forward rather than one more button.
+// `idle` disables it until the page has what it needs.
+export function ToolAction({ label, icon, idle, primary, onClick }: { label: string; icon?: string; idle?: boolean; primary?: boolean; onClick: () => void }) {
   return (
-    <button type="button" className={idle ? "add-btn glass idle" : "add-btn glass"} onClick={onClick}>
+    <button type="button" className={["add-btn glass", primary && "primary-action", idle && "idle"].filter(Boolean).join(" ")} disabled={idle} onClick={onClick}>
       {icon && <img className="asset" src={`/assets/icons/${icon}.svg`} alt="" />} {label}
     </button>
   )
@@ -496,6 +498,18 @@ function swallowClick(el: HTMLElement) {
   window.setTimeout(() => el.removeEventListener("click", stop, { capture: true }), 0)
 }
 
+// A person's name with their TripUp tag under it, for every member list.
+export function PersonName({ id, you = false }: { id: string; you?: boolean }) {
+  const item = person(id)
+  if (!item) return null
+  return (
+    <span className="person-name">
+      {you ? `${item.name} (you)` : item.name}
+      <small className="person-tag">{item.tag}</small>
+    </span>
+  )
+}
+
 export function CheckRow({ id, on, disabled, note, onClick }: { id: string; on: boolean; disabled?: boolean; note?: string; onClick: () => void }) {
   const item = person(id)
   if (!item) return null
@@ -506,7 +520,7 @@ export function CheckRow({ id, on, disabled, note, onClick }: { id: string; on: 
         <Face id={id} />
         <span>
           {item.name}
-          {note && <em>{note}</em>}
+          {note ? <em>{note}</em> : <small className="person-tag">{item.tag}</small>}
         </span>
       </button>
     </li>

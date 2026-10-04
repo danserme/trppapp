@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react"
 import { inYear, passportStamps, photosForStamp, stampYear, tokyoDays, trips, tripYear, type Stamp } from "../data"
-import { useStore } from "../state"
+import { person, useStore } from "../state"
 import { BackButton } from "./chrome"
 
 const stampPhotos: Record<string, string> = Object.fromEntries(["amsterdam", "munich", "porto", "paris", "lisbon"].map((id) => [id, `/assets/passport/stamps/${id}.jpg`]))
@@ -89,7 +89,7 @@ export function PassportPanel() {
         <div className="pass-id">
           <h1>Passport</h1>
           <p>
-            <span className="pass-tag">@ari.mendoza</span>
+            <span className="pass-tag">{person("ari")?.tag}</span>
             <em>Explorer Lv4</em>
           </p>
         </div>
