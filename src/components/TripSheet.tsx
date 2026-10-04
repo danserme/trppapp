@@ -690,7 +690,7 @@ function PollCard() {
           id: "poll-result",
           time: `${poll.from}–${poll.to}`,
           tone: "muted",
-          status: poll.status ?? (top.votes.length > 0 ? "voted" : "planned"),
+          status: poll.status ?? "visit",
           title: name,
           people: top.votes.length > 0 ? top.votes : ["ari"],
           kind: "food",

@@ -173,7 +173,7 @@ const at = (id: string, time: string, status: string, title: string, people: str
 
 export const stops: Record<DayId, Stop[]> = {
   mon: [
-    { id: "flight-in", time: "09:40–11:10", tone: "muted", status: "landed", title: "Flight to Lisbon", people: ["ari", "john", "ben"], kind: "flight" },
+    { id: "flight-in", time: "09:40–11:10", tone: "muted", status: "ride", title: "Flight to Lisbon", people: ["ari", "john", "ben"], kind: "flight" },
     { id: "mon-coffee", time: "11:40–12:20", tone: "muted", status: "coffee", title: "Comoba", people: ["ari", "irene"], },
     { id: "mon-market", time: "12:40–14:10", tone: "muted", status: "lunch", title: "Time Out Market", people: ["john", "ben", "ari"], },
     { id: "mon-gap", time: "14:30–16:00", tone: "muted", status: "open", title: "Afternoon", people: [], kind: "gap" },
@@ -187,23 +187,23 @@ export const stops: Record<DayId, Stop[]> = {
     { id: "tue-lunch", time: "12:00–13:20", tone: "muted", status: "lunch", title: "Cervejaria Ramiro", people: ["john", "menta"], kind: "food", bill: true },
     { id: "tue-castle", time: "13:40–14:40", tone: "muted", status: "visit", title: "Castelo de São Jorge", people: ["ari", "ben"], },
     { id: "museum", time: "15:00–17:00", tone: "muted", status: "visit", title: "Museum of Arts", people: ["irene", "ari"], },
-    { id: "hotel", time: "17:00–20:00", tone: "now", status: "resting", title: "Hotel Da Baixa", people: ["john", "ben", "ari"] },
-    { id: "hotel-night", time: "22:30–08:00", tone: "muted", status: "resting", title: "Hotel Da Baixa", people: ["john", "ben", "ari"], afterPoll: true },
+    { id: "hotel", time: "17:00–20:00", tone: "now", status: "visit", title: "Hotel Da Baixa", people: ["john", "ben", "ari"] },
+    { id: "hotel-night", time: "22:30–08:00", tone: "muted", status: "night", title: "Hotel Da Baixa", people: ["john", "ben", "ari"], afterPoll: true },
   ],
   wed: [
     { id: "wed-belem", time: "09:30–11:20", tone: "muted", status: "visit", title: "Belém Tower", people: ["ari", "john", "ben"], },
-    { id: "wed-pasteis", time: "11:40–12:30", tone: "muted", status: "sweet", title: "Pastéis de Belém", people: ["irene", "menta"], kind: "food" },
+    { id: "wed-pasteis", time: "11:40–12:30", tone: "muted", status: "coffee", title: "Pastéis de Belém", people: ["irene", "menta"], kind: "food" },
     { id: "wed-gap", time: "13:00–15:00", tone: "muted", status: "open", title: "Afternoon", people: [], kind: "gap" },
     { id: "wed-maat", time: "15:30–17:20", tone: "muted", status: "visit", title: "MAAT", people: ["menta", "ari"], },
     { id: "wed-river", time: "18:00–19:20", tone: "muted", status: "walk", title: "Riverfront", people: ["ben", "john"], },
-    { id: "wed-fado", time: "20:30–22:30", tone: "muted", status: "fado", title: "Mesa de Frades", people: ["ari", "irene"], kind: "food" },
+    { id: "wed-fado", time: "20:30–22:30", tone: "muted", status: "dinner", title: "Mesa de Frades", people: ["ari", "irene"], kind: "food" },
   ],
   thu: [
-    { id: "flight-out", time: "10:30–12:40", tone: "muted", status: "depart", title: "Flight home", people: ["ari", "ben"], kind: "flight" },
+    { id: "flight-out", time: "10:30–12:40", tone: "muted", status: "ride", title: "Flight home", people: ["ari", "ben"], kind: "flight" },
   ],
   tk1: [
-    { id: "tk-flight", time: "09:55–11:30", tone: "muted", status: "landing", title: "Arrive at Haneda", people: ["ari", "john", "ben"], kind: "flight" },
-    { id: "tk-hotel", time: "15:00–16:00", tone: "muted", status: "check-in", title: "Hotel Gracery Shinjuku", people: ["ari", "john", "ben", "irene"] },
+    { id: "tk-flight", time: "09:55–11:30", tone: "muted", status: "ride", title: "Arrive at Haneda", people: ["ari", "john", "ben"], kind: "flight" },
+    { id: "tk-hotel", time: "15:00–16:00", tone: "muted", status: "visit", title: "Hotel Gracery Shinjuku", people: ["ari", "john", "ben", "irene"] },
     { id: "tk-ramen", time: "19:30–21:00", tone: "muted", status: "dinner", title: "Fuunji Ramen", people: ["ari", "ben"], kind: "food" },
   ],
   tk2: [
@@ -216,7 +216,7 @@ export const stops: Record<DayId, Stop[]> = {
     { id: "tk-teamlab", time: "13:00–15:00", tone: "muted", status: "visit", title: "teamLab Planets", people: ["ari", "irene", "ben"] },
   ],
   tk4: [
-    { id: "tk-flight-out", time: "11:20–17:35", tone: "muted", status: "depart", title: "Flight home", people: ["ari", "john", "ben"], kind: "flight" },
+    { id: "tk-flight-out", time: "11:20–17:35", tone: "muted", status: "ride", title: "Flight home", people: ["ari", "john", "ben"], kind: "flight" },
   ],
   am1: [
     at("am1-coffee", "10:00–10:40", "coffee", "Back to Black", ["ari", "irene"]),
@@ -229,16 +229,16 @@ export const stops: Record<DayId, Stop[]> = {
     at("am2-rijks", "10:30–12:30", "visit", "Rijksmuseum", ["ari", "irene"]),
     at("am2-lunch", "13:00–14:00", "lunch", "Foodhallen", ["ari", "john", "ben"], "food"),
     at("am2-gap", "14:30–17:30", "open", "Afternoon", [], "gap"),
-    at("am2-concert", "20:30–23:30", "concert", "Concert at Ziggo Dome", ["ari", "john", "ben", "irene"]),
+    at("am2-concert", "20:30–23:30", "night", "Concert at Ziggo Dome", ["ari", "john", "ben", "irene"]),
   ],
   am3: [
-    at("am3-brunch", "10:00–11:30", "brunch", "Pluk", ["ari", "john"], "food"),
-    at("am3-park", "12:00–13:30", "stroll", "Vondelpark", ["irene", "ben"]),
-    at("am3-bye", "15:00–15:30", "goodbyes", "Amsterdam Centraal", ["ari", "john", "ben", "irene"]),
+    at("am3-brunch", "10:00–11:30", "breakfast", "Pluk", ["ari", "john"], "food"),
+    at("am3-park", "12:00–13:30", "walk", "Vondelpark", ["irene", "ben"]),
+    at("am3-bye", "15:00–15:30", "ride", "Amsterdam Centraal", ["ari", "john", "ben", "irene"]),
   ],
   mu1: [
-    at("mu1-flight", "08:05–09:25", "landed", "Flight to Munich", ["ari", "john", "ben"], "flight"),
-    at("mu1-hotel", "11:00–11:30", "check-in", "Louis Hotel", ["ari", "john", "ben"]),
+    at("mu1-flight", "08:05–09:25", "ride", "Flight to Munich", ["ari", "john", "ben"], "flight"),
+    at("mu1-hotel", "11:00–11:30", "visit", "Louis Hotel", ["ari", "john", "ben"]),
     at("mu1-square", "13:00–15:00", "wander", "Marienplatz", ["ari", "ben"]),
     at("mu1-dinner", "18:30–21:00", "dinner", "Augustiner-Keller", ["ari", "john", "ben"], "food"),
   ],
@@ -248,7 +248,7 @@ export const stops: Record<DayId, Stop[]> = {
     at("mu2-dinner", "19:00–21:00", "dinner", "Hofbräuhaus", ["john", "ben"], "food"),
   ],
   mu3: [
-    at("mu3-castle", "08:30–17:30", "day trip", "Neuschwanstein Castle", ["ari", "john", "ben"]),
+    at("mu3-castle", "08:30–17:30", "visit", "Neuschwanstein Castle", ["ari", "john", "ben"]),
     at("mu3-dinner", "19:30–21:00", "dinner", "Schneider Bräuhaus", ["ari", "ben"], "food"),
   ],
   mu4: [
@@ -258,7 +258,7 @@ export const stops: Record<DayId, Stop[]> = {
   ],
   mu5: [
     at("mu5-train", "10:55–14:58", "ride", "ICE to Berlin", ["ari", "john", "ben"]),
-    at("mu5-hotel", "16:00–16:30", "check-in", "Hotel Oderberger", ["ari", "john", "ben"]),
+    at("mu5-hotel", "16:00–16:30", "visit", "Hotel Oderberger", ["ari", "john", "ben"]),
     at("mu5-dinner", "19:00–21:00", "dinner", "Markthalle Neun", ["ari", "ben"], "food"),
   ],
   mu6: [
@@ -277,17 +277,17 @@ export const stops: Record<DayId, Stop[]> = {
     at("mu8-dinner", "19:30–22:00", "dinner", "Nobelhart & Schmutzig", ["ari", "john"], "food"),
   ],
   mu9: [
-    at("mu9-swim", "11:00–13:00", "swim", "Badeschiff", ["ari", "ben"]),
+    at("mu9-swim", "11:00–13:00", "visit", "Badeschiff", ["ari", "ben"]),
     at("mu9-art", "14:00–16:30", "visit", "Hamburger Bahnhof", ["ari", "john"]),
     at("mu9-bars", "21:00–00:30", "night", "Kreuzberg bars", ["ari", "john", "ben"]),
   ],
   mu10: [
-    at("mu10-brunch", "10:00–11:00", "brunch", "House of Small Wonder", ["ari", "john", "ben"], "food"),
-    at("mu10-flight", "14:10–15:35", "depart", "Flight home", ["ari", "john", "ben"], "flight"),
+    at("mu10-brunch", "10:00–11:00", "breakfast", "House of Small Wonder", ["ari", "john", "ben"], "food"),
+    at("mu10-flight", "14:10–15:35", "ride", "Flight home", ["ari", "john", "ben"], "flight"),
   ],
   po1: [
-    at("po1-flight", "07:30–09:05", "landed", "Flight to Porto", ["ari", "irene", "menta"], "flight"),
-    at("po1-hotel", "10:00–10:30", "check-in", "Torel Avantgarde", ["ari", "irene", "menta"]),
+    at("po1-flight", "07:30–09:05", "ride", "Flight to Porto", ["ari", "irene", "menta"], "flight"),
+    at("po1-hotel", "10:00–10:30", "visit", "Torel Avantgarde", ["ari", "irene", "menta"]),
     at("po1-lunch", "12:30–13:45", "lunch", "Casa Guedes", ["ari", "menta"], "food"),
     at("po1-ribeira", "17:00–19:00", "walk", "Ribeira", ["ari", "irene"]),
     at("po1-dinner", "20:00–22:00", "dinner", "Taberna dos Mercadores", ["ari", "irene", "menta"], "food"),
@@ -295,11 +295,11 @@ export const stops: Record<DayId, Stop[]> = {
   po2: [
     at("po2-lello", "10:00–11:00", "visit", "Livraria Lello", ["ari", "irene"]),
     at("po2-tower", "11:30–12:30", "visit", "Clérigos Tower", ["ari", "menta"]),
-    at("po2-port", "15:00–17:00", "tasting", "Graham’s Port Lodge", ["ari", "irene", "menta"]),
+    at("po2-port", "15:00–17:00", "drinks", "Graham’s Port Lodge", ["ari", "irene", "menta"]),
     at("po2-sunset", "19:00–20:00", "sunset", "Jardim do Morro", ["ari", "irene", "menta"]),
   ],
   po3: [
-    at("po3-douro", "09:00–18:00", "day trip", "Douro Valley", ["ari", "irene", "menta"]),
+    at("po3-douro", "09:00–18:00", "visit", "Douro Valley", ["ari", "irene", "menta"]),
     at("po3-dinner", "20:30–22:00", "dinner", "Cantinho do Avillez", ["ari", "menta"], "food"),
   ],
   po4: [
@@ -309,11 +309,11 @@ export const stops: Record<DayId, Stop[]> = {
   ],
   po5: [
     at("po5-coffee", "09:30–10:30", "coffee", "Majestic Café", ["ari", "irene"]),
-    at("po5-flight", "13:40–17:10", "depart", "Flight home", ["ari", "irene", "menta"], "flight"),
+    at("po5-flight", "13:40–17:10", "ride", "Flight home", ["ari", "irene", "menta"], "flight"),
   ],
   pa1: [
     at("pa1-train", "07:16–10:35", "ride", "Eurostar to Paris", ["ari", "martina", "maria"]),
-    at("pa1-hotel", "11:30–12:00", "check-in", "Hotel des Grands Boulevards", ["ari", "martina", "maria"]),
+    at("pa1-hotel", "11:30–12:00", "visit", "Hotel des Grands Boulevards", ["ari", "martina", "maria"]),
     at("pa1-lunch", "13:00–14:30", "lunch", "Chez Janou", ["ari", "maria"], "food"),
     at("pa1-marais", "16:00–18:00", "wander", "Le Marais", ["ari", "martina"]),
     at("pa1-dinner", "20:00–21:30", "dinner", "Bouillon Chartier", ["ari", "martina", "maria"], "food"),
@@ -321,12 +321,12 @@ export const stops: Record<DayId, Stop[]> = {
   pa2: [
     at("pa2-orsay", "09:30–12:30", "visit", "Musée d’Orsay", ["ari", "martina"]),
     at("pa2-lunch", "13:00–14:00", "lunch", "Café de Flore", ["ari", "martina", "maria"], "food"),
-    at("pa2-garden", "15:00–17:00", "stroll", "Jardin du Luxembourg", ["ari", "maria"]),
-    at("pa2-seine", "20:30–22:00", "cruise", "Seine by night", ["ari", "martina", "maria"]),
+    at("pa2-garden", "15:00–17:00", "walk", "Jardin du Luxembourg", ["ari", "maria"]),
+    at("pa2-seine", "20:30–22:00", "ride", "Seine by night", ["ari", "martina", "maria"]),
   ],
   pa3: [
     at("pa3-montmartre", "09:30–11:30", "wander", "Montmartre", ["ari", "martina"]),
-    at("pa3-brunch", "12:00–13:30", "brunch", "Holybelly", ["ari", "martina", "maria"], "food"),
+    at("pa3-brunch", "12:00–13:30", "breakfast", "Holybelly", ["ari", "martina", "maria"], "food"),
     at("pa3-train", "17:13–20:30", "ride", "Eurostar home", ["ari", "martina", "maria"]),
   ],
 }

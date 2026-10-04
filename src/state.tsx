@@ -31,7 +31,6 @@ import {
   type TripId,
 } from "./data"
 import { daylight, type Palette } from "./mapStyle"
-import { isMobile } from "./device"
 
 type Tab = "trips" | "friends" | "passport"
 type Mode = "map" | "list"
@@ -134,8 +133,7 @@ const initial: State = {
   splitIds: ["john", "ben", "irene", "menta"],
   locateTick: 0,
   year: "all",
-  // On a real phone the app opens straight away; the mock iOS home screen only belongs to the desktop frame.
-  launched: isMobile,
+  launched: false,
   toastTone: "info",
   pollVoting: true,
   tripStart: "2026-10-05",

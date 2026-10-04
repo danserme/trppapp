@@ -16,8 +16,8 @@ type Glyph = keyof typeof glyphs
 export function activityGlyph(stop: Pick<Stop, "kind" | "status" | "title">): Glyph {
   const status = stop.status.toLowerCase()
   const title = stop.title.toLowerCase()
-  if (stop.kind === "flight" || status === "landed" || status === "depart") return "ticket"
-  if (status === "resting" || title.includes("hotel")) return "bed"
+  if (stop.kind === "flight") return "ticket"
+  if (title.includes("hotel")) return "bed"
   if (status === "night") return "moon"
   return "pin"
 }

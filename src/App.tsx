@@ -19,7 +19,6 @@ import { StampGallery, StampViewer } from "./components/Passport"
 import { StatusBar, TabBar, Toast } from "./components/chrome"
 import { IconList, IconSliders } from "./components/icons"
 import { trips } from "./data"
-import { isMobile } from "./device"
 import { MID, OPEN, PEEK, TALL, TODAY, Provider, useStore } from "./state"
 
 const PHONE_W = 402
@@ -110,13 +109,12 @@ function Phone() {
   const dayView = state.tab === "trips" && state.snap !== PEEK && state.sheet !== "group" && state.tripTab === "itinerary"
   const lit = dayView && (state.trip !== "lisbon" || state.day !== TODAY)
   const highlight = useMemo<MapHighlight>(() => (lit ? { trip: state.trip, day: state.day } : null), [lit, state.trip, state.day])
-  const screenH = screen?.clientHeight ?? PHONE_H
-  const peekTop = screenH - 400
-  const sheetTop = state.tab === "trips" && state.snap === PEEK ? peekTop : screenH - snapPx
+  const peekTop = PHONE_H - 400
+  const sheetTop = state.tab === "trips" && state.snap === PEEK ? peekTop : PHONE_H - snapPx
   const camera = state.tab === "friends" ? { focus: "trip" as const, highlight: null, sheetTop: peekTop } : { focus, highlight, sheetTop }
 
   useEffect(() => {
-    document.documentElement.dataset.mode = isMobile ? "mobile" : "app"
+    document.documentElement.dataset.mode = "app"
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") dispatch({ type: "back" })
     }
@@ -260,7 +258,7 @@ function Phone() {
 }
 
 export default function App() {
-  const isApp = isMobile || new URLSearchParams(location.search).has("app")
+  const isApp = new URLSearchParams(location.search).has("app")
   if (!isApp) return <Shell />
   return (
     <Provider>
