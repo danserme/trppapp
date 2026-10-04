@@ -1,12 +1,113 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
-import { person } from "../state"
+import { tripDays } from "../data"
+import { TODAY, dayStops, person, place, useStore } from "../state"
 import { IconBack } from "./icons"
 
-export function StatusBar({ light = false }: { light?: boolean }) {
+/* ─────────────────────────────────────────────────────────
+ * DYNAMIC ISLAND · live activity for the trip in progress
+ *
+ *    0ms   plain island
+ *  700ms   grows to compact: next plan's photo left, its start time right
+ *    tap   springs open into the card (Up next, plan, day progress)
+ *    tap   on the card opens the trip; a tap anywhere else closes it
+ * ───────────────────────────────────────────────────────── */
+const ISLAND_APPEAR_MS = 700
+
+type NextUp = { title: string; detail: string; time: string; meta: string; photo?: string }
+
+const titleCase = (text: string) => text[0].toUpperCase() + text.slice(1)
+
+// What comes after the stop happening now, read from the same itinerary and poll the trip drawer shows.
+function useNextUp(): NextUp | null {
+  const { state } = useStore()
+  const poll = state.pollByDay[TODAY]
+  if (poll && poll.options.length > 0) {
+    const most = Math.max(...poll.options.map((option) => option.votes.length))
+    const top = poll.options.find((option) => option.votes.length === most) ?? poll.options[0]
+    const info = place(top.id)
+    const name = info?.name ?? top.name ?? "Option"
+    const label = poll.status ? titleCase(poll.status) : "Plan"
+    if (poll.decided) return { title: name, detail: label, time: poll.from, meta: `until ${poll.to}`, photo: info?.photo }
+    const ballots = new Set(poll.options.flatMap((option) => option.votes)).size
+    return { title: `${label} poll`, detail: `${name} leading`, time: poll.from, meta: `${ballots}/${state.members.length + 1} voted`, photo: info?.photo }
+  }
+  const list = dayStops(TODAY)
+  const next = list[list.findIndex((stop) => stop.tone === "now") + 1]
+  if (!next) return null
+  const [from, to] = next.time.split("–")
+  return { title: next.title, detail: titleCase(next.status), time: from, meta: `until ${to}`, photo: next.title === "Hotel Da Baixa" ? "/assets/hotel-baixa.png" : undefined }
+}
+
+function LiveActivity({ onOpen }: { onOpen?: () => void }) {
+  const [stage, setStage] = useState<"idle" | "compact" | "expanded">("idle")
+  const island = useRef<HTMLDivElement>(null)
+  const next = useNextUp()
+  const days = tripDays("lisbon")
+  const today = days.findIndex((day) => day.progress > 0 && day.progress < 1)
+  const left = days.length - today - 1
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setStage("compact"), ISLAND_APPEAR_MS)
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (stage !== "expanded") return
+    const close = (event: PointerEvent) => {
+      if (!island.current?.contains(event.target as Node)) setStage("compact")
+    }
+    document.addEventListener("pointerdown", close)
+    return () => document.removeEventListener("pointerdown", close)
+  }, [stage])
+
+  if (!next) return <span className="island" />
+  const thumb = next.photo ? <img src={next.photo} alt="" /> : <i className="island-thumb" />
+  return (
+    <div ref={island} className="island" data-stage={stage}>
+      <button type="button" className="island-compact" aria-label={`Up next at ${next.time}: ${next.title}`} aria-expanded={stage === "expanded"} tabIndex={stage === "compact" ? 0 : -1} onClick={() => setStage("expanded")}>
+        {thumb}
+        <b>{next.time}</b>
+      </button>
+      <button
+        type="button"
+        className="island-expanded"
+        tabIndex={stage === "expanded" ? 0 : -1}
+        onClick={() => {
+          setStage("compact")
+          onOpen?.()
+        }}
+      >
+        <span className="island-row">
+          {thumb}
+          <span className="island-text">
+            <small>Up next</small>
+            <strong>{next.title}</strong>
+            <em>{next.detail}</em>
+          </span>
+          <span className="island-when">
+            <strong>{next.time}</strong>
+            <em>{next.meta}</em>
+          </span>
+        </span>
+        <span className="island-progress">
+          <span className="island-days">
+            <span>
+              Day {today + 1} of {days.length}
+            </span>
+            <span>{left === 1 ? "1 day left" : `${left} days left`}</span>
+          </span>
+          <DaySegments fills={days.map((day) => day.progress)} />
+        </span>
+      </button>
+    </div>
+  )
+}
+
+export function StatusBar({ light = false, onOpenTrip }: { light?: boolean; onOpenTrip?: () => void }) {
   return (
     <div className={light ? "status light" : "status"}>
       <span className="time">9:41</span>
-      <span className="island" />
+      <LiveActivity onOpen={onOpenTrip} />
       <span className="signals" aria-hidden="true">
         <svg width="17" height="12" viewBox="0 0 17 12">
           <rect x="0" y="7" width="3" height="5" rx="0.6" fill="currentColor" />

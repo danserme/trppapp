@@ -194,16 +194,78 @@ button.glass:active { transform: scale(0.94); }
   color: #0e1a36;
 }
 .time { font-family: Inter, sans-serif; font-weight: 600; font-size: 16px; letter-spacing: -0.3px; width: 54px; position: relative; z-index: 1; }
+/* The island morphs between three sizes. Opening springs with a slight overshoot like Apple's;
+   closing is quicker and settles without bounce, because the user is done with it. */
 .island {
+  --island-spring: cubic-bezier(0.25, 1.25, 0.45, 1);
+  --island-settle: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   position: absolute;
+  z-index: 2;
   left: 50%;
-  top: 50%;
+  top: 13px;
   width: 124px;
   height: 36px;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
+  overflow: hidden;
   background: #000;
   border-radius: 20px;
+  color: #fff;
+  pointer-events: auto;
+  transition-property: width, height, border-radius, top, box-shadow, scale;
+  transition-duration: 0.36s, 0.36s, 0.36s, 0.36s, 0.36s, 0.16s;
+  transition-timing-function: var(--island-settle), var(--island-settle), var(--island-settle), var(--island-settle), ease, var(--ease-out);
 }
+.island[data-stage="compact"] { width: 196px; }
+.island[data-stage="expanded"] {
+  top: 11px;
+  width: calc(100% - 16px);
+  height: 152px;
+  border-radius: 44px;
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.06) inset, 0 20px 44px -14px rgba(0, 0, 0, 0.5);
+  transition-duration: 0.5s, 0.5s, 0.5s, 0.5s, 0.5s, 0.16s;
+  transition-timing-function: var(--island-spring), var(--island-spring), var(--island-spring), var(--island-spring), ease, var(--ease-out);
+}
+/* The whole card is the button to the trip, so it gives under the finger. */
+.island[data-stage="expanded"]:has(.island-expanded:active) { scale: 0.985; }
+.island > button { position: absolute; inset: 0; display: flex; color: inherit; text-align: left; }
+.island > button:active { transform: none; }
+
+.island-compact { align-items: center; justify-content: space-between; padding: 0 12px 0 7px; opacity: 0; transition: opacity 0.12s ease-out; }
+.island-compact img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+.island-compact b { font-family: Inter, sans-serif; font-size: 13px; font-weight: 600; letter-spacing: -0.2px; color: #8fb0ff; font-variant-numeric: tabular-nums; }
+.island[data-stage="compact"] .island-compact { opacity: 1; transition: opacity 0.2s ease-out 0.14s; }
+.island[data-stage="expanded"] .island-compact { pointer-events: none; }
+
+/* Expanded content rises out of the camera cut-out: each row unblurs and settles in turn, and all of it leaves at once, fast. */
+.island-expanded { flex-direction: column; justify-content: space-between; gap: 14px; padding: 20px 24px 22px; pointer-events: none; }
+.island-expanded > * { opacity: 0; transform: translateY(-6px) scale(0.98); transform-origin: top center; filter: blur(4px); transition: opacity 0.1s ease-out, transform 0.1s ease-out, filter 0.1s ease-out; }
+.island[data-stage="expanded"] .island-expanded { pointer-events: auto; }
+.island[data-stage="expanded"] .island-expanded > * { opacity: 1; transform: none; filter: none; transition: opacity 0.3s var(--ease-out) 0.12s, transform 0.36s var(--ease-out) 0.12s, filter 0.3s var(--ease-out) 0.12s; }
+.island[data-stage="expanded"] .island-expanded > :nth-child(2) { transition-delay: 0.18s; }
+
+.island-row { display: flex; align-items: center; gap: 14px; }
+.island-row > img, .island-row > .island-thumb { width: 50px; height: 50px; flex: none; border-radius: 14px; object-fit: cover; box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.14); }
+.island-compact .island-thumb { width: 22px; height: 22px; border-radius: 50%; }
+.island-thumb { display: block; background: #2b59f0; }
+.island-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.island-text small { font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+.island-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-weight: 600; letter-spacing: -0.3px; line-height: 1.2; }
+.island-text em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: normal; font-size: 13px; font-weight: 500; color: rgba(255, 255, 255, 0.6); }
+.island-when { flex: none; align-self: stretch; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 2px; padding-left: 14px; border-left: 1px solid rgba(255, 255, 255, 0.12); }
+.island-when strong { font-family: Inter, sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.5px; line-height: 1; color: #8fb0ff; font-variant-numeric: tabular-nums; }
+.island-when em { font-style: normal; font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, 0.5); font-variant-numeric: tabular-nums; }
+.island-progress { display: flex; flex-direction: column; gap: 8px; }
+.island-days { display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, 0.45); font-variant-numeric: tabular-nums; }
+.island-days span:first-child { color: rgba(255, 255, 255, 0.85); }
+.island-expanded .segments { width: 100%; }
+.island-expanded .segments i { height: 3px; background: rgba(255, 255, 255, 0.16); }
+.island-expanded .segments b { background: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .island { transition-property: opacity; }
+  .island-expanded > * { transform: none; filter: none; }
+}
+
 .signals { display: flex; align-items: center; gap: 5px; position: relative; z-index: 1; }
 
 .map-btn, .locate, .glass-icon, .search-btn {
@@ -1562,15 +1624,16 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .calendar-card .rdp-root { font-family: Manrope, sans-serif; }
 .calendar-card.compact {
   flex-direction: column;
-  align-self: flex-start;
+  align-self: stretch;
+  align-items: center;
   gap: 8px;
   padding: 14px;
   border-radius: 18px;
   transform-origin: top left;
 }
 .calendar-card.compact .rdp-root {
-  --rdp-day-width: 36px;
-  --rdp-day-height: 32px;
+  --rdp-day-width: 46px;
+  --rdp-day-height: 36px;
   --rdp-day_button-width: 32px;
   --rdp-day_button-height: 32px;
   --rdp-day_button-border-radius: 10px;
@@ -1580,7 +1643,7 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .calendar-card.compact .rdp-nav { height: 28px; }
 .calendar-card.compact .rdp-weekday { font-size: 11px; padding: 0 0 4px; }
 .calendar-card.compact .rdp-day_button { font-size: 13px; }
-.calendar-ok { align-self: stretch; display: flex; justify-content: flex-end; }
+.calendar-ok { align-self: stretch; display: flex; justify-content: flex-end; padding: 0 4px; }
 .calendar-ok button { min-width: 64px; height: 32px; padding: 0 16px; border-radius: 999px; background: #2b59f0; color: #fff; font-size: 14px; font-weight: 600; }
 .calendar-ok button:disabled { background: #e4e7ef; color: #9aa1b2; }
 .calendar-card .rdp-month_caption { font-family: Inter, sans-serif; font-size: 17px; font-weight: 500; letter-spacing: -0.3px; padding-left: 8px; }
@@ -1804,6 +1867,25 @@ button.meta-pill:active { transform: scale(0.96); }
 .form-stack { display: flex; flex-direction: column; gap: 28px; margin-top: 20px; }
 .form-label > small { font-size: 13px; font-weight: 500; color: #a6a6a6; }
 .form-section .add-row { margin-top: 0; }
+/* A secondary step, so it sits under the field as a quiet text button instead of a full-width pill. */
+.add-row.inline { align-self: flex-start; width: auto; height: 32px; margin: -2px 0 0 2px; padding: 0 12px; background: none; font-size: 15px; }
+.add-row.inline:active { background: #eef2fe; }
+
+/* Who's coming: avatars in a grid so the whole group fits on screen; a tap toggles the blue ring and check. */
+.people-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 8px; margin: 4px 0 0; padding: 0; list-style: none; }
+.person-pick { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+.person-pick-face { position: relative; display: block; border-radius: 50%; box-shadow: 0 0 0 0 #2b59f0; transition: box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1); }
+.person-pick-face .face { display: block; width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
+.person-pick-face i { position: absolute; right: -2px; bottom: -2px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #2b59f0; box-shadow: 0 0 0 2px #fff; opacity: 0; transform: scale(0.5); transition: opacity 0.16s ease, transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.person-pick-face i .asset { width: 12px; height: 12px; filter: brightness(0) invert(1); }
+.person-pick.on .person-pick-face { box-shadow: 0 0 0 2.5px #fff, 0 0 0 4.5px #2b59f0; }
+.person-pick.on .person-pick-face i { opacity: 1; transform: none; }
+.person-pick-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; color: #5e6678; transition: color 0.2s ease; }
+.person-pick.on .person-pick-name { color: #0e1a36; font-weight: 600; }
+.person-pick:active .person-pick-face { transform: scale(0.94); }
+@media (prefers-reduced-motion: reduce) {
+  .person-pick-face, .person-pick-face i { transition: none; }
+}
 .date-range b.placeholder { color: #a6a6a6; }
 .member-list.invite-card { margin-top: -6px; }
 .details-card { background: #eee; border-radius: 15px; overflow: hidden; }

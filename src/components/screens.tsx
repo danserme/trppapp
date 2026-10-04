@@ -22,7 +22,7 @@ import { dayStops, isPastDay, person, shortDate, tripRange, useStore } from "../
 import { AvatarStack, BackButton, CheckRow, Face, PersonName, SwipeRow, ToolAction, ToolIcon, Toolbar } from "./chrome"
 import { CurrentTripCard } from "./TripSheet"
 import { StampArt } from "./Passport"
-import { IconChevron, IconClose, IconList, IconPencil, IconPlace, IconPlus, IconSearch, IconShare, IconTrash } from "./icons"
+import { IconChevron, IconClose, IconMap, IconPencil, IconPlace, IconPlus, IconSearch, IconShare, IconTrash } from "./icons"
 
 function tripShots(ids: string[], covers: Record<string, string>, shared: SharedPhoto[]) {
   const stamps = ids.flatMap((id) => passportStamps.filter((item) => item.id === id))
@@ -64,7 +64,7 @@ export function TripList() {
         <header className="page-head">
           <h1>My Trips</h1>
           <button type="button" className="glass-icon glass" aria-label="Show trips on map" onClick={() => dispatch({ type: "mode", mode: "map" })}>
-            <IconList />
+            <IconMap />
           </button>
         </header>
         <div className="filters">
@@ -1216,7 +1216,7 @@ export function NewTrip() {
               </li>
             ))}
           </ol>
-          <button type="button" className="add-row" onClick={addCity}>
+          <button type="button" className="add-row inline" onClick={addCity}>
             <IconPlus /> Add another city
           </button>
         </section>
@@ -1252,6 +1252,37 @@ export function NewTrip() {
         </section>
         <section className="form-section">
           <div className="form-label">
+            <span>Who’s coming</span>
+            <small>{members.length > 0 ? `You + ${members.length}` : "Just you"}</small>
+          </div>
+          <ul className="people-grid">
+            {people.map((id) => {
+              const on = members.includes(id)
+              const name = person(id)?.name ?? id
+              return (
+                <li key={id}>
+                  <button
+                    type="button"
+                    className={on ? "person-pick on" : "person-pick"}
+                    aria-pressed={on}
+                    aria-label={name}
+                    onClick={() => setMembers((list) => (list.includes(id) ? list.filter((item) => item !== id) : [...list, id]))}
+                  >
+                    <span className="person-pick-face">
+                      <Face id={id} size={56} />
+                      <i aria-hidden="true">
+                        <img className="asset" src="/assets/icons/check.svg" alt="" />
+                      </i>
+                    </span>
+                    <span className="person-pick-name">{name.split(" ")[0]}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+        <section className="form-section">
+          <div className="form-label">
             <span>Details</span>
             <small>Optional</small>
           </div>
@@ -1262,22 +1293,6 @@ export function NewTrip() {
             </label>
             <SavedListField value={savedList} onChange={setSavedList} />
           </div>
-        </section>
-        <section className="form-section">
-          <div className="form-label">
-            <span>Who’s coming{members.length > 0 ? ` · ${members.length + 1}` : ""}</span>
-            {members.length > 0 && <AvatarStack ids={["ari", ...members].slice(0, 3)} extra={Math.max(0, members.length - 2)} size={22} />}
-          </div>
-          <ul className="member-list checks invite-card">
-            {people.map((id) => (
-              <CheckRow
-                key={id}
-                id={id}
-                on={members.includes(id)}
-                onClick={() => setMembers((list) => (list.includes(id) ? list.filter((item) => item !== id) : [...list, id]))}
-              />
-            ))}
-          </ul>
         </section>
       </div>
       <Toolbar>
