@@ -3,7 +3,7 @@ import { isPastTrip, parsedTickets, passportStamps, pastExpenses, tickets, trips
 import { PEEK, TALL, TODAY, dayStops, isPastDay, person, place, tripRange, useStore } from "../state"
 import { FriendsPanel } from "./screens"
 import { PassportPanel } from "./Passport"
-import { AvatarStack, DaySegments, Face, PhotoStack, SwipeRow, ToolAction, ToolIcon, Toolbar } from "./chrome"
+import { AvatarStack, DaySegments, Face, PersonName, PhotoStack, SwipeRow, ToolAction, ToolIcon, Toolbar } from "./chrome"
 import { ActivityIcon, IconChevron, IconLocate, IconPencil, IconTrash } from "./icons"
 import { mapPaths, stopKey } from "../mapPaths"
 
@@ -1049,7 +1049,7 @@ function GroupSheet() {
         <header className="trip-head">
           <h1>{head.title}</h1>
         </header>
-        <p className="members-label">Members</p>
+        <p className="members-label">{head.members.length} {head.members.length === 1 ? "member" : "members"}</p>
         <ul className="member-list">
           {head.members.map((id) => {
             const item = person(id)
@@ -1057,7 +1057,7 @@ function GroupSheet() {
             return (
               <li key={id}>
                 <Face id={id} />
-                <span>{item.name}</span>
+                <PersonName id={id} />
               </li>
             )
           })}
@@ -1087,7 +1087,7 @@ export function BalancesSheet() {
             return (
               <li key={item.id}>
                 <Face id={item.id} />
-                <span>{who.name}</span>
+                <PersonName id={item.id} />
                 <b className="owe">{item.amount} €</b>
               </li>
             )

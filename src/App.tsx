@@ -17,7 +17,7 @@ import {
 import { BalancesSheet, TripDrawer } from "./components/TripSheet"
 import { StampGallery, StampViewer } from "./components/Passport"
 import { StatusBar, TabBar, Toast } from "./components/chrome"
-import { IconMap, IconSliders } from "./components/icons"
+import { IconList, IconSliders } from "./components/icons"
 import { trips } from "./data"
 import { MID, OPEN, PEEK, TALL, TODAY, Provider, useStore } from "./state"
 
@@ -168,7 +168,7 @@ function Phone() {
           onTripsInView={setTripsInView}
         />
       )}
-      <StatusBar />
+      <StatusBar onOpenTrip={() => dispatch({ type: "open-trip", trip: "lisbon" })} />
       {showYears && (
         <button type="button" className="map-btn left glass" aria-label="Years" aria-expanded={yearsOpen} onClick={() => setYearsOpen((open) => !open)}>
           <IconSliders />
@@ -196,7 +196,7 @@ function Phone() {
       )}
       {showChrome && (
         <button type="button" className="map-btn right glass" aria-label="Show trips as list" onClick={() => dispatch({ type: "mode", mode: "list" })}>
-          <IconMap />
+          <IconList />
         </button>
       )}
       {state.tab === "trips" && state.mode === "list" && <TripList />}

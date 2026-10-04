@@ -36,7 +36,14 @@ export function HomeScreen() {
   }
   return (
     <div className="home">
-      <StatusBar light />
+      <StatusBar
+        light
+        onOpenTrip={() => {
+          const island = document.querySelector<HTMLElement>(".island")
+          if (island) markLaunch(island)
+          dispatch({ type: "launch", target: "trip" })
+        }}
+      />
       <button type="button" className="widget widget-trip" onClick={launch("trip")} aria-label="Open Exploring Lisbon">
         <span className="widget-card">
           <span className="widget-left">

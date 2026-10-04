@@ -4,23 +4,24 @@ import awayRoutes from "./away-routes.json" with { type: "json" }
 export type Person = {
   id: string
   name: string
+  tag: string
   photo: string
   shape: "stamp" | "circle"
 }
 
 export const people: Record<string, Person> = {
-  ari: { id: "ari", name: "Ari", photo: "/assets/avatars/glasses.png", shape: "circle" },
-  john: { id: "john", name: "John Doe", photo: "/assets/people/john.jpg", shape: "circle" },
-  ben: { id: "ben", name: "Ben Rucola", photo: "/assets/people/ben.jpg", shape: "circle" },
-  irene: { id: "irene", name: "Irene Mente", photo: "/assets/people/irene.jpg", shape: "circle" },
-  ivan: { id: "ivan", name: "Ivan Crispy", photo: "/assets/avatars/side.png", shape: "circle" },
-  nic: { id: "nic", name: "Nic Kruse", photo: "/assets/avatars/dark.png", shape: "circle" },
-  menta: { id: "menta", name: "Sara Menta", photo: "/assets/people/sara.jpg", shape: "circle" },
-  martina: { id: "martina", name: "Martina Bella", photo: "/assets/people/martina.jpg", shape: "circle" },
-  maria: { id: "maria", name: "Maria Kliger", photo: "/assets/people/maria.jpg", shape: "circle" },
-  doris: { id: "doris", name: "Doris Meng", photo: "/assets/people/doris.jpg", shape: "circle" },
-  nastya: { id: "nastya", name: "Nastya Mint", photo: "/assets/people/nastya.jpg", shape: "circle" },
-  ren: { id: "ren", name: "Ren Montefusco", photo: "/assets/people/ren.jpg", shape: "circle" },
+  ari: { id: "ari", name: "Ari", tag: "@ari.mendoza", photo: "/assets/avatars/glasses.png", shape: "circle" },
+  john: { id: "john", name: "John Doe", tag: "@johndoe", photo: "/assets/people/john.jpg", shape: "circle" },
+  ben: { id: "ben", name: "Ben Rucola", tag: "@ben.rucola", photo: "/assets/people/ben.jpg", shape: "circle" },
+  irene: { id: "irene", name: "Irene Mente", tag: "@irene.mente", photo: "/assets/people/irene.jpg", shape: "circle" },
+  ivan: { id: "ivan", name: "Ivan Crispy", tag: "@ivancrispy", photo: "/assets/avatars/side.png", shape: "circle" },
+  nic: { id: "nic", name: "Nic Kruse", tag: "@nic.kruse", photo: "/assets/avatars/dark.png", shape: "circle" },
+  menta: { id: "menta", name: "Sara Menta", tag: "@saramenta", photo: "/assets/people/sara.jpg", shape: "circle" },
+  martina: { id: "martina", name: "Martina Bella", tag: "@martina.bella", photo: "/assets/people/martina.jpg", shape: "circle" },
+  maria: { id: "maria", name: "Maria Kliger", tag: "@mariakliger", photo: "/assets/people/maria.jpg", shape: "circle" },
+  doris: { id: "doris", name: "Doris Meng", tag: "@doris.meng", photo: "/assets/people/doris.jpg", shape: "circle" },
+  nastya: { id: "nastya", name: "Nastya Mint", tag: "@nastya.mint", photo: "/assets/people/nastya.jpg", shape: "circle" },
+  ren: { id: "ren", name: "Ren Montefusco", tag: "@ren.montefusco", photo: "/assets/people/ren.jpg", shape: "circle" },
 }
 
 export const initialMembers = ["john", "ben", "irene", "menta"]
