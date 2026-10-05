@@ -295,7 +295,10 @@ function Phone() {
       {showTabs && (
         <TabBar
           tab={state.tab}
-          onTab={(tab) => dispatch({ type: "tab", tab })}
+          onTab={(tab) => {
+            dispatch({ type: "tab", tab })
+            setYearsOpen(false)
+          }}
           onAdd={() => dispatch({ type: "overlay", overlay: "new-trip" })}
         />
       )}

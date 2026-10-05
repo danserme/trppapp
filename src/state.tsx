@@ -211,6 +211,9 @@ function reducer(state: State, action: Action): State {
         gallery: false,
         mode: action.tab === "trips" ? state.mode : "map",
         snap: action.tab === "trips" ? PEEK : action.tab === "passport" ? PASS : OPEN,
+        // Coming to Trips from another tab always lands on its default map: a year picked on the Passport globe
+        // doesn't carry over. A tap on Trips while already there leaves its own filter alone.
+        year: action.tab === "trips" && state.tab !== "trips" ? "all" : state.year,
       }
     case "mode":
       return { ...state, mode: action.mode, tab: "trips", overlay: null }
