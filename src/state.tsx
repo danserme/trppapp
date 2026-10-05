@@ -105,6 +105,7 @@ type State = {
   removedStops: string[]
   removedTrips: string[]
   removedMembers: Record<string, string[]>
+  onboarding: boolean
 }
 
 const initial: State = {
@@ -156,6 +157,7 @@ const initial: State = {
   removedStops: [],
   removedTrips: [],
   removedMembers: {},
+  onboarding: false,
 }
 
 type Action =
@@ -172,6 +174,7 @@ type Action =
   | { type: "focus-stop"; id: string; coord: [number, number] }
   | { type: "overlay"; overlay: Overlay; anchor?: string | null; voting?: boolean }
   | { type: "launch"; target: "trip" | "map" }
+  | { type: "onboarded" }
   | { type: "home" }
   | { type: "split"; open: boolean }
   | { type: "toggle-friend"; id: string }
@@ -456,6 +459,8 @@ function reducer(state: State, action: Action): State {
         ...state,
         openPhoto: null,
         launched: true,
+        // Every launch tells the story first, whichever way the app was opened; the target view waits behind it.
+        onboarding: true,
         trip: "lisbon" as const,
         tab: "trips" as const,
         mode: "map" as const,
@@ -466,6 +471,8 @@ function reducer(state: State, action: Action): State {
       if (action.target === "map") return { ...base, snap: PEEK, sheet: "trip" as const, tripTab: "itinerary" as const }
       return { ...base, snap: OPEN, sheet: "trip" as const, tripTab: "itinerary" as const, day: "tue" }
     }
+    case "onboarded":
+      return { ...state, onboarding: false }
     case "home":
       return { ...state, launched: false, overlay: null, splitOpen: false, sheet: "trip", toast: null }
     case "create-trip":

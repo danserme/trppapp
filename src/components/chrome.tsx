@@ -116,11 +116,11 @@ function LiveActivity({ onOpen }: { onOpen?: () => void }) {
   )
 }
 
-export function StatusBar({ light = false, onOpenTrip }: { light?: boolean; onOpenTrip?: () => void }) {
+export function StatusBar({ light = false, island = true, onOpenTrip }: { light?: boolean; island?: boolean; onOpenTrip?: () => void }) {
   return (
     <div className={light ? "status light" : "status"}>
       <span className="time">17:23</span>
-      <LiveActivity onOpen={onOpenTrip} />
+      {island ? <LiveActivity onOpen={onOpenTrip} /> : <span className="island" />}
       <span className="signals" aria-hidden="true">
         <svg width="17" height="12" viewBox="0 0 17 12">
           <rect x="0" y="7" width="3" height="5" rx="0.6" fill="currentColor" />

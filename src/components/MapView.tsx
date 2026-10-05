@@ -8,6 +8,7 @@ import {
   dayFocus,
   dayRoute,
   days,
+  globePlaces,
   inYear,
   passportArcs,
   passportStamps,
@@ -20,6 +21,7 @@ import {
 import type { Point } from "../geo"
 import { awayEntries, mapPaths, stopKey } from "../mapPaths"
 import { STYLE_URL, applyPalette, type Palette } from "../mapStyle"
+import { playRoute } from "../globeReveal"
 import { TODAY } from "../state"
 
 maplibregl.setWorkerUrl(workerUrl)
@@ -53,14 +55,17 @@ const coverOf = (id: string) => tripOf(id)?.stampIds[0] ?? id
 const tripsIn = (year: number) => trips.filter((trip) => tripYear(trip) === year).map((trip) => trip.id)
 const stampsIn = (year: Year) => passportStamps.filter((stamp) => inYear(stampYear(stamp), year))
 
-const ROUTE_LAYERS = ["path-glow", "path-future-casing", "path-future", "path-past", "path-dots"]
-// A light white casing under the future dashes keeps them legible across streets and labels.
+const ROUTE_LAYERS = ["path-glow", "path-future", "path-past", "path-dots"]
 const PASSPORT_LAYERS = ["passport-arcs", "passport-dots"]
 const OVERVIEW_ZOOM = 8.5
 const SPOT_ZOOM = 16.2
 const isGlobe = (focus: MapFocus) => focus === "globe" || focus.startsWith("stamp:")
 const isAway = (focus: MapFocus) => focus.startsWith("away:")
 const awayTrip = (focus: MapFocus) => focus.slice(5) as Exclude<TripId, "lisbon">
+
+// The passport route for the globe: one dot per place and an arc to the next, with the years the year filter reads.
+const passportPlaces = globePlaces.map((stamp) => ({ coord: stamp.coord, props: { id: stamp.id, from: stampYear(stamp), to: stampYear(stamp) } }))
+const passportRoute = passportArcs.map((coordinates, index) => ({ coordinates, props: { id: "", from: stampYear(globePlaces[index]), to: stampYear(globePlaces[index + 1]) } }))
 
 const paths = mapPaths(TODAY)
 const tripIds = ["lisbon", ...awayEntries.map(([trip]) => trip)]
@@ -78,9 +83,10 @@ const FUTURE = PAST
 const FUTURE_DIM = "#c8d4fb"
 // Figma: 3px stroke, dasharray 8 8, round caps. MapLibre measures dashes in line widths.
 // One stroke for the future line and the future stops' ring, so the dashes and the circles read as the same pen.
-const FUTURE_STROKE = 3.5
-// Figma's 8px dash / 8px gap, in MapLibre's line-width units.
-const FUTURE_DASH = [8 / FUTURE_STROKE, 8 / FUTURE_STROKE]
+// Measured off Figma's own render of 109:5853 (its vector is scaled, so the file's "8 8" isn't what shows):
+// 5.5px dashes with 5px gaps. Round caps add one stroke width to each dash and take it from each gap.
+const FUTURE_STROKE = 3
+const FUTURE_DASH = [(5.5 - FUTURE_STROKE) / FUTURE_STROKE, (5 + FUTURE_STROKE) / FUTURE_STROKE]
 // Figma stops are SVG circles with a centred stroke; MapLibre strokes outside the radius, so radius = r - stroke / 2.
 const PAST_STOP = { radius: 7.15 - 1.5, stroke: 3 }
 // Future stops keep Figma's outer size (~17px) with a heavier 3.5px ring.
@@ -191,6 +197,7 @@ export function MapView({ palette, locateTick, year, sheetTop, focus, highlight,
   const ready = useRef(false)
   const syncRef = useRef(() => {})
   const pingRef = useRef<(coord: Point) => void>(() => {})
+  const revealRef = useRef<(() => (clear?: boolean) => void) | null>(null)
   const lastLocate = useRef(locateTick)
 
   useEffect(() => {
@@ -336,14 +343,6 @@ export function MapView({ palette, locateTick, year, sheetTop, focus, highlight,
         layout: { "line-cap": "round", "line-join": "round" },
       })
       map.addLayer({
-        id: "path-future-casing",
-        type: "line",
-        source: "paths",
-        filter: DASHED,
-        paint: { "line-color": "#ffffff", "line-width": FUTURE_STROKE + 4, "line-opacity-transition": fade },
-        layout: { "line-cap": "round", "line-join": "round" },
-      })
-      map.addLayer({
         id: "path-future",
         type: "line",
         source: "paths",
@@ -373,20 +372,9 @@ export function MapView({ palette, locateTick, year, sheetTop, focus, highlight,
           "circle-radius-transition": fade,
         },
       })
-      map.addSource("passport", {
-        type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: [
-            ...passportArcs.map((coordinates, index) => ({
-              type: "Feature" as const,
-              properties: { id: "", from: stampYear(passportStamps[index]), to: stampYear(passportStamps[index + 1]) },
-              geometry: { type: "LineString" as const, coordinates },
-            })),
-            ...passportStamps.map((stamp) => ({ type: "Feature" as const, properties: { id: stamp.id, from: stampYear(stamp), to: stampYear(stamp) }, geometry: { type: "Point" as const, coordinates: stamp.coord } })),
-          ],
-        },
-      })
+      map.addSource("passport", { type: "geojson", data: { type: "FeatureCollection", features: [] } })
+      revealRef.current = () => playRoute(map.getSource("passport") as maplibregl.GeoJSONSource, passportPlaces, passportRoute, 450)
+      revealRef.current()(false)
       map.addLayer({
         id: "passport-arcs",
         type: "line",
@@ -402,7 +390,13 @@ export function MapView({ palette, locateTick, year, sheetTop, focus, highlight,
         source: "passport",
         maxzoom: OVERVIEW_ZOOM,
         filter: ["==", ["geometry-type"], "Point"],
-        paint: { "circle-radius": 6, "circle-color": "#2b59f0", "circle-stroke-color": "#fff", "circle-stroke-width": 2 },
+        // `s` is each dot's pop scale while the route reveals itself (globeReveal.ts); 1 once it's settled.
+        paint: {
+          "circle-radius": ["*", 6, ["coalesce", ["get", "s"], 1]],
+          "circle-color": "#2b59f0",
+          "circle-stroke-color": "#fff",
+          "circle-stroke-width": ["*", 2, ["min", 1, ["coalesce", ["get", "s"], 1]]],
+        },
       })
       applyPalette(map, latest.current.palette)
       ready.current = true
@@ -439,6 +433,14 @@ export function MapView({ palette, locateTick, year, sheetTop, focus, highlight,
   useEffect(() => {
     if (spot) pingRef.current(spot)
   }, [spot])
+
+  // Opening the Passport globe tells the route as a journey; leaving it shows the whole route again for the overview.
+  const onGlobe = focus === "globe"
+  useEffect(() => {
+    if (!onGlobe || !ready.current || !revealRef.current) return
+    const stop = revealRef.current()
+    return () => stop(false)
+  }, [onGlobe])
 
   useEffect(() => {
     const highlighted = isDay(focus) ? key(dayFocus(focus).first) : null
@@ -499,7 +501,7 @@ function syncRoute(map: maplibregl.Map, focus: MapFocus, highlight: MapHighlight
   const futureOnly = withYear(DASHED)
   const pastOnly = withYear(SOLID)
   const stopsKept = withYear(["!", ["in", ["concat", ["get", "day"], "/", ["get", "stop"]], ["literal", removed.stops]]])
-  for (const id of ["path-glow", "path-future-casing", "path-future"]) map.setFilter(id, futureOnly)
+  for (const id of ["path-glow", "path-future"]) map.setFilter(id, futureOnly)
   map.setFilter("path-past", pastOnly)
   map.setFilter("path-dots", stopsKept)
   const picked: maplibregl.ExpressionSpecification = highlight
@@ -511,8 +513,6 @@ function syncRoute(map: maplibregl.Map, focus: MapFocus, highlight: MapHighlight
       ? ["case", picked, on, ["get", "rest"], rest, 0]
       : ["case", ["get", "rest"], base, 0]) as maplibregl.ExpressionSpecification
   map.setPaintProperty("path-future", "line-opacity", shown(1, 1, 1))
-  // Light: enough to keep dashes legible over streets without reading as a road of its own.
-  map.setPaintProperty("path-future-casing", "line-opacity", shown(0.7, 0.7, 0.35))
   map.setPaintProperty("path-future", "line-color", highlight ? ["case", picked, FUTURE, FUTURE_DIM] : FUTURE)
   map.setPaintProperty("path-glow", "line-opacity", highlight ? ["case", picked, 0.05, 0] : 0)
   map.setPaintProperty("path-past", "line-opacity", shown(1, 1, 0.18))
