@@ -1,7 +1,10 @@
 import type { CSSProperties } from "react"
-import { days } from "../data"
+import { days, trips } from "../data"
 import { useStore } from "../state"
-import { DaySegments, StatusBar } from "./chrome"
+import { AvatarStack, DaySegments, StatusBar } from "./chrome"
+
+// The widget shows the trip that is on now, with its people as the app stacks them.
+const lisbon = trips.find((trip) => trip.id === "lisbon")!
 
 const agenda = [
   { time: "15:00", icon: "/assets/home/w-museum.svg", title: "Museum of Arts", tone: "past" },
@@ -52,11 +55,7 @@ export function HomeScreen() {
               <strong>Exploring Lisbon</strong>
             </span>
             <span className="widget-foot">
-              <span className="widget-faces">
-                <img src="/assets/faces/w-1.png" alt="" />
-                <img src="/assets/faces/w-2.png" alt="" />
-                <b>+3</b>
-              </span>
+              <AvatarStack ids={lisbon.people} extra={lisbon.extra} size={28} />
               <DaySegments fills={days.map((item) => item.progress)} />
             </span>
           </span>

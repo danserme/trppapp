@@ -568,6 +568,8 @@ export const passportStamps: Stamp[] = [
 ]
 
 export const stampYear = (stamp: Stamp) => Number(stamp.date.slice(-4))
+// Nights away per trip, as the Passport totals them.
+export const tripNights: Record<string, number> = { amsterdam: 2, munich: 9, porto: 4, paris: 2, lisbon: 4 }
 export const tripYear = (trip: Trip) => Number(trip.dates.slice(-4))
 export const inYear = (value: number, year: number | "all") => year === "all" || value === year
 

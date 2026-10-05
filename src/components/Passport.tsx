@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react"
-import { inYear, passportStamps, photosForStamp, stampYear, tokyoDays, trips, tripYear, type Stamp } from "../data"
+import { inYear, passportStamps, photosForStamp, stampYear, tokyoDays, tripNights, trips, tripYear, type Stamp } from "../data"
 import { PASS, TALL, person, useStore } from "../state"
 import { BackButton } from "./chrome"
 
@@ -78,7 +78,6 @@ export function StampArt({ stamp, photo, className = "", style }: { stamp: Stamp
 }
 
 const tripCovers = trips.flatMap((trip) => passportStamps.filter((stamp) => stamp.id === trip.stampIds[0]))
-const tripNights: Record<string, number> = { amsterdam: 2, munich: 9, porto: 4, paris: 2, lisbon: 4 }
 
 export function PassportPanel() {
   const { state, dispatch } = useStore()

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ReactNode } from "react"
 import * as maplibregl from "maplibre-gl"
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url"
-import { globePlaces, initialExpenses, passportArcs, passportStamps, people, tuesdayPoll } from "../data"
+import { globePlaces, initialExpenses, passportArcs, passportStamps, people, tripNights, trips, tuesdayPoll } from "../data"
 import { STYLE_URL, applyPalette, daylight } from "../mapStyle"
-import { dotTimes, playRoute, revealMs } from "../globeReveal"
+import { dotTimes, playRoute } from "../globeReveal"
 import { dayStops, place } from "../state"
 import { StampArt } from "./Passport"
 import { NowTag } from "./TripSheet"
@@ -22,15 +22,24 @@ import { ActivityIcon, IconChevron } from "./icons"
  * ───────────────────────────────────────────────────────── */
 
 const PAGES = ["splash", "trips", "expenses", "passport"] as const
-const SWIPE_PX = 48
-const FLICK = 0.4
-
-const stamp = (id: string) => passportStamps.find((item) => item.id === id)!
+// A finger turns the page past 32px or on a flick quicker than 0.25px/ms. A mouse drag is short and deliberate (the
+// press already says "drag"), so it turns past 16px or 0.15px/ms.
+const SWIPE = { touch: { px: 32, flick: 0.25 }, mouse: { px: 16, flick: 0.15 } }
+// A mouse drag doesn't wait for the release: once it's this far along, the page snaps over while the button is still down.
+const MOUSE_SNAP = 40
+// A two-finger trackpad swipe turns one page once it has travelled this far sideways; the momentum that follows is
+// ignored until the wheel has been quiet for WHEEL_REST.
+const WHEEL_PX = 30
+const WHEEL_REST = 180
+// A press that barely moves and lets go within this is a tap: the right half goes forward, the left half back.
+const TAP_MS = 350
 
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const [page, setPage] = useState(0)
   const [dx, setDx] = useState(0)
-  const drag = useRef<{ x: number; y: number; t: number; axis: "x" | "y" | null } | null>(null)
+  // `trail` keeps the last 100ms of moves, so a release reads the speed the pointer had at the end, not its average.
+  const drag = useRef<{ x: number; y: number; axis: "x" | "y" | null; trail: { x: number; t: number }[] } | null>(null)
+  const wheel = useRef({ sum: 0, spent: false, timer: 0 })
   const last = page === PAGES.length - 1
   const go = (next: number) => setPage(Math.max(0, Math.min(PAGES.length - 1, next)))
 
@@ -45,18 +54,29 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
   function down(event: ReactPointerEvent<HTMLDivElement>) {
     if (!event.isPrimary || event.button !== 0 || (event.target as Element).closest("button, [data-onb-tilt]")) return
-    drag.current = { x: event.clientX, y: event.clientY, t: event.timeStamp, axis: null }
+    drag.current = { x: event.clientX, y: event.clientY, axis: null, trail: [{ x: event.clientX, t: event.timeStamp }] }
   }
   function move(event: ReactPointerEvent<HTMLDivElement>) {
     const start = drag.current
     if (!start) return
+    // A mouse released outside the window never sends pointerup here; drop the drag once its button is up.
+    if (event.pointerType === "mouse" && event.buttons === 0) return cancel()
     const x = event.clientX - start.x
+    start.trail.push({ x: event.clientX, t: event.timeStamp })
+    while (start.trail.length > 2 && event.timeStamp - start.trail[0].t > 100) start.trail.shift()
     if (!start.axis) {
       if (Math.abs(x) < 8 && Math.abs(event.clientY - start.y) < 8) return
-      start.axis = Math.abs(x) > Math.abs(event.clientY - start.y) ? "x" : "y"
+      // The pages never scroll, so only a clearly vertical drag is left alone; anything diagonal pages.
+      start.axis = Math.abs(event.clientY - start.y) > Math.abs(x) * 2 ? "y" : "x"
       if (start.axis === "x") event.currentTarget.setPointerCapture(event.pointerId)
     }
     if (start.axis !== "x") return
+    const target = x < 0 ? page + 1 : page - 1
+    if (event.pointerType === "mouse" && Math.abs(x) > MOUSE_SNAP && target >= 0 && target < PAGES.length) {
+      drag.current = null
+      setDx(0)
+      return go(target)
+    }
     // The first page is where the story starts, so it doesn't pull back past its edge at all; the last one rubber-bands.
     if (page === 0 && x > 0) return setDx(0)
     setDx(last && x < 0 ? x * 0.3 : x)
@@ -64,18 +84,48 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   function up(event: ReactPointerEvent<HTMLDivElement>) {
     const start = drag.current
     drag.current = null
+    if (start && !start.axis && event.timeStamp - start.trail[0].t < TAP_MS) {
+      const box = event.currentTarget.getBoundingClientRect()
+      // The last page's way forward is its button, so a tap there doesn't end the onboarding by accident.
+      if (event.clientX >= box.left + box.width / 2) {
+        if (!last) go(page + 1)
+      } else go(page - 1)
+      return
+    }
     if (!start || start.axis !== "x") return setDx(0)
     const x = event.clientX - start.x
-    const speed = x / Math.max(event.timeStamp - start.t, 1)
-    if (x < -SWIPE_PX || speed < -FLICK) go(page + 1)
-    else if (x > SWIPE_PX || speed > FLICK) go(page - 1)
+    const from = start.trail[0]
+    const speed = (event.clientX - from.x) / Math.max(event.timeStamp - from.t, 1)
+    const { px, flick } = event.pointerType === "mouse" ? SWIPE.mouse : SWIPE.touch
+    // A flick decides the direction, else the distance does; a flick back against a drag calls it off.
+    const flung = Math.abs(speed) > flick ? Math.sign(speed) : 0
+    const pulled = Math.abs(x) > px ? Math.sign(x) : 0
+    const dir = flung && pulled && flung !== pulled ? 0 : flung || pulled
+    if (dir) go(page - dir)
+    setDx(0)
+  }
+  function scroll(event: ReactWheelEvent<HTMLDivElement>) {
+    if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return
+    const state = wheel.current
+    window.clearTimeout(state.timer)
+    state.timer = window.setTimeout(() => Object.assign(state, { sum: 0, spent: false }), WHEEL_REST)
+    if (state.spent) return
+    state.sum += event.deltaX
+    if (Math.abs(state.sum) < WHEEL_PX) return
+    state.spent = true
+    go(state.sum > 0 ? page + 1 : page - 1)
+  }
+  // An interrupted drag (the browser took the pointer, or it was lost) settles back on the page it was on; its
+  // coordinates aren't a real release, so they must not turn the page.
+  function cancel() {
+    drag.current = null
     setDx(0)
   }
 
   return (
-    <div className="onb" data-page={PAGES[page]} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+    <div className="onb" data-page={PAGES[page]} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel} onDragStart={(event) => event.preventDefault()} onWheel={scroll}>
       <StatusBar light={page === 0} island={false} />
-      <button type="button" className={last ? "onb-skip away" : "onb-skip"} onClick={onDone} tabIndex={last ? -1 : 0}>
+      <button type="button" className={last ? "onb-skip glass away" : "onb-skip glass"} onClick={onDone} tabIndex={last ? -1 : 0}>
         Skip
       </button>
       <div className={dx ? "onb-track dragging" : "onb-track"} style={{ transform: `translateX(calc(${-page * 100}% + ${dx}px))` }}>
@@ -108,7 +158,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             <button key={id} type="button" role="tab" aria-selected={index === page} aria-label={`Page ${index + 1}`} className={index === page ? "on" : ""} onClick={() => go(index)} />
           ))}
         </div>
-        <button type="button" className="onb-next" onClick={() => (last ? onDone() : go(page + 1))}>
+        <button type="button" className="onb-next glass" onClick={() => (last ? onDone() : go(page + 1))}>
           {page === 0 ? "Get started" : last ? "Start exploring" : "Next"}
         </button>
       </footer>
@@ -192,40 +242,15 @@ function Splash() {
 
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches
 
-const easeOut = (t: number) => 1 - (1 - t) ** 3
-const linear = (t: number) => t
-
-// Counts up to `to` once the page is on screen; shows the final value straight away when motion is reduced.
-function useCount(to: number, on: boolean, ms = 1100, delay = 350, ease = easeOut) {
-  const [progress, setProgress] = useState(0)
-  useEffect(() => {
-    if (!on || reduceMotion()) return
-    let frame = 0
-    const begin = performance.now() + delay
-    const tick = (now: number) => {
-      const t = Math.min(Math.max((now - begin) / ms, 0), 1)
-      setProgress(ease(t))
-      if (t < 1) frame = requestAnimationFrame(tick)
-    }
-    frame = requestAnimationFrame(tick)
-    return () => {
-      cancelAnimationFrame(frame)
-      setProgress(0)
-    }
-  }, [on, ms, delay, ease])
-  if (!on) return 0
-  return reduceMotion() ? to : to * progress
-}
-
 const nowStop = dayStops("tue").find((item) => item.tone === "now")!
 const pollTotal = tuesdayPoll.options.reduce((sum, option) => sum + option.votes.length, 0)
 const pollOptions = tuesdayPoll.options.slice(0, 2)
 
 // The poll is played as a vote: it arrives unanswered, the first option is tapped and ticked, then it turns into the
 // results with the bars filling. Seconds from the page arriving.
-// The options are in by about 2.9s; the tap waits a beat so the unanswered poll can be read first.
-const POLL_TAP = 3.5
-const POLL_RESULTS = 3.9
+// The options are in by about 2.9s; the tap follows almost straight away, just long enough to see the poll unanswered.
+const POLL_TAP = 3.05
+const POLL_RESULTS = 3.45
 
 function usePollPhase(on: boolean) {
   const [phase, setPhase] = useState<"ask" | "tap" | "voted">("ask")
@@ -244,6 +269,8 @@ function usePollPhase(on: boolean) {
   return on ? phase : "ask"
 }
 
+const FUTURE_ROUTE = "M168 132 C 204 124, 226 146, 246 160 S 284 176, 306 168"
+
 // The real itinerary pieces: the map above, and in the sheet today's activity and the dinner poll with two options.
 function TripsVisual({ on }: { on: boolean }) {
   const phase = usePollPhase(on)
@@ -253,11 +280,16 @@ function TripsVisual({ on }: { on: boolean }) {
         <img className="onb-map-bg" src="/assets/home/map-shot.png" alt="" draggable={false} />
         <svg className="onb-route" viewBox="0 0 330 210" aria-hidden="true">
           <path className="onb-route-past" pathLength={1} d="M78 18 C 92 52, 70 84, 104 110 S 140 140, 168 132" />
-          <path className="onb-route-future" d="M168 132 C 204 124, 226 146, 246 160 S 284 176, 306 168" />
+          {/* The future route is dashed, so it can't draw itself with its own dash offset like the past one: a solid copy
+              draws in a mask over it instead, while the dashes keep marching underneath. */}
+          <mask id="onb-future-reveal" maskUnits="userSpaceOnUse" x="-20" y="-20" width="370" height="250">
+            <path className="onb-route-reveal" pathLength={1} d={FUTURE_ROUTE} />
+          </mask>
+          <path className="onb-route-future" mask="url(#onb-future-reveal)" d={FUTURE_ROUTE} />
           <circle className="onb-stop past" cx="78" cy="18" r="7.15" style={{ "--d": "0.2s" } as CSSProperties} />
           <circle className="onb-stop past" cx="104" cy="110" r="7.15" style={{ "--d": "0.6s" } as CSSProperties} />
-          <circle className="onb-stop future" cx="246" cy="160" r="7.12" style={{ "--d": "1.4s" } as CSSProperties} />
-          <circle className="onb-stop future" cx="306" cy="168" r="7.12" style={{ "--d": "1.55s" } as CSSProperties} />
+          <circle className="onb-stop future" cx="246" cy="160" r="7.12" style={{ "--d": "1.65s" } as CSSProperties} />
+          <circle className="onb-stop future" cx="306" cy="168" r="7.12" style={{ "--d": "2.05s" } as CSSProperties} />
           <g className="onb-here">
             <circle className="onb-here-halo" cx="168" cy="132" r="24" />
             <circle className="onb-here-pulse" cx="168" cy="132" r="24" />
@@ -355,9 +387,9 @@ function TripsVisual({ on }: { on: boolean }) {
 const money = (value: number) => `${Number.isInteger(value) ? value : value.toFixed(2).replace(".", ",")} €`
 const groupTotal = initialExpenses.reduce((sum, item) => sum + item.amount, 0)
 const youPaid = initialExpenses.filter((item) => item.paidBy === "you").reduce((sum, item) => sum + item.amount, 0)
-// Five bills land, one every beat, then the pile rests. Each move lasts the whole beat (index.css), so the pile and the
+// Four bills land, one every beat, then the pile rests. Each move lasts the whole beat (index.css), so the pile and the
 // numbers flow from one bill into the next without stopping.
-const BILLS = 5
+const BILLS = 4
 const STACK_EVERY = 650
 
 function stakeOf(item: (typeof initialExpenses)[number]) {
@@ -367,7 +399,7 @@ function stakeOf(item: (typeof initialExpenses)[number]) {
     : { tone: "owe", text: `you owe ${money(share)}` }
 }
 
-// The first bill lands the moment the page arrives, then one more every beat until all five are down;
+// The first bill lands the moment the page arrives, then one more every beat until all four are down;
 // back to an empty pile when the page leaves.
 function usePile(on: boolean) {
   const [ticks, setTicks] = useState(0)
@@ -424,7 +456,7 @@ function Stat({ value, format = (n: number) => String(Math.round(n)), beat }: { 
   )
 }
 
-// The five bills that land, oldest first; before them the card shows the trip as it was.
+// The four bills that land, oldest first; before them the card shows the trip as it was.
 const landing = initialExpenses.slice(0, BILLS)
 const before = {
   total: groupTotal - landing.reduce((sum, item) => sum + item.amount, 0),
@@ -502,12 +534,63 @@ maplibregl.setWorkerUrl(workerUrl)
 
 // The Passport's globe telling the route as a journey: a city pops in, the line travels its arc to the next, and so on.
 const REVEAL_START = 0.2
-// Quicker than the Passport tab's and at an even speed, so the onboarding's journey reads as one smooth sweep.
-const PACE = { pace: 0.7, linear: true }
+// The Passport tab's pace at an even speed: a city every 470ms, long enough for its stamp to land (DEAL_S, the deal's
+// duration in index.css) and its totals to count before the next city comes, so the journey reads as one beat after another.
+const PACE = { pace: 1, linear: true }
+const DEAL_S = 0.45
 const times = dotTimes(globePlaces.length, PACE)
-const revealAt = (index: number) => REVEAL_START + times[index] / 1000
-const REVEAL_END = REVEAL_START + revealMs(globePlaces.length, PACE) / 1000
-const dealt = ["amsterdam", "munich", "porto", "paris", "lisbon"].map((id) => ({ stamp: stamp(id), at: revealAt(globePlaces.findIndex((item) => item.id === id)) }))
+// Each city's stamp deals, and the totals step up, a hair after its dot starts to pop.
+const dealAt = (index: number) => REVEAL_START + times[index] / 1000 + 0.05
+const dealt = globePlaces.map((item, index) => ({ stamp: item, at: dealAt(index) }))
+
+// The Passport's totals as they stand once each city is on the globe. A trip's nights, and any of its cities the globe
+// doesn't show (Rotterdam), are counted with the trip's first city on the globe.
+const onGlobe = new Set(globePlaces.map((item) => item.id))
+const tally = (() => {
+  const countries = new Set<string>()
+  let cities = 0
+  let nights = 0
+  return globePlaces.map((item) => {
+    const trip = trips.find((entry) => entry.stampIds.includes(item.id))
+    const first = trip?.stampIds.find((id) => onGlobe.has(id)) === item.id
+    const added = trip && first ? trip.stampIds.filter((id) => id === item.id || !onGlobe.has(id)) : [item.id]
+    for (const id of added) countries.add(passportStamps.find((entry) => entry.id === id)!.country)
+    cities += added.length
+    if (trip && first) nights += tripNights[trip.id] ?? 0
+    return { countries: countries.size, cities, nights }
+  })
+})()
+type Totals = (typeof tally)[number]
+const zero: Totals = { countries: 0, cities: 0, nights: 0 }
+
+// The totals counted on the globe's clock: each city's step counts up evenly over its stamp's deal, from the moment
+// `going` turns on. Everything shows at once when motion is reduced.
+function useTally(going: boolean) {
+  const [totals, setTotals] = useState(zero)
+  useEffect(() => {
+    if (!going || reduceMotion()) return
+    let frame = 0
+    const begin = performance.now()
+    const tick = (now: number) => {
+      const elapsed = (now - begin) / 1000
+      const next = { ...zero }
+      tally.forEach((step, index) => {
+        const before = tally[index - 1] ?? zero
+        const t = Math.min(Math.max((elapsed - dealAt(index)) / DEAL_S, 0), 1)
+        for (const key of ["countries", "cities", "nights"] as const) next[key] += (step[key] - before[key]) * t
+      })
+      setTotals(next)
+      if (elapsed < dealAt(tally.length - 1) + DEAL_S) frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => {
+      cancelAnimationFrame(frame)
+      setTotals(zero)
+    }
+  }, [going])
+  if (!going) return zero
+  return reduceMotion() ? tally[tally.length - 1] : totals
+}
 const places = globePlaces.map((item) => ({ coord: item.coord }))
 const route = passportArcs.map((coordinates) => ({ coordinates }))
 
@@ -580,17 +663,14 @@ function OnbGlobe({ on, onStart }: { on: boolean; onStart: (started: boolean) =>
   return <div ref={node} className="onb-globe" />
 }
 
-// The Passport globe lights up city by city, each trip's stamp deals in as its city appears, and the totals count up
-// alongside; the globe fades out at the bottom into the stamps.
+// The Passport globe lights up city by city; as each city appears its stamp deals in and the totals count up what it
+// adds; the globe fades out at the bottom into the stamps.
 function PassportVisual({ on, near }: { on: boolean; near: boolean }) {
   // Everything below runs off the moment the globe's route starts, not the moment the page shows: the map may still be
   // loading when the page arrives, and the stamps and totals have to move with the lines.
   const [started, setStarted] = useState(false)
   const going = on && started
-  const span = (REVEAL_END - REVEAL_START) * 1000
-  const countries = useCount(4, going, span, REVEAL_START * 1000, linear)
-  const cities = useCount(7, going, span, REVEAL_START * 1000, linear)
-  const nights = useCount(21, going, span, REVEAL_START * 1000, linear)
+  const { countries, cities, nights } = useTally(going)
   return (
     <div className={going ? "onb-pass dealing" : "onb-pass"}>
       <div className="onb-globe-wrap" aria-hidden="true">
@@ -598,7 +678,7 @@ function PassportVisual({ on, near }: { on: boolean; near: boolean }) {
       </div>
       <div className="onb-fan">
         {dealt.map(({ stamp: item, at }, index) => (
-          <div key={item.id} className="onb-fan-stamp" style={{ "--i": index - (dealt.length - 1) / 2, "--d": `${at + 0.05}s` } as CSSProperties}>
+          <div key={item.id} className="onb-fan-stamp" style={{ "--i": index - (dealt.length - 1) / 2, "--d": `${at}s` } as CSSProperties}>
             <StampArt stamp={item} />
           </div>
         ))}
