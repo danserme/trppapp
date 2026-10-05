@@ -79,7 +79,7 @@ export function IconMap() {
 }
 
 export function IconLocate() {
-  return <Mark className="locate-icon" src="/assets/icons/locate.svg" />
+  return <Mark src="/assets/icons/locate.svg" />
 }
 
 export function IconSearch() {

@@ -542,7 +542,7 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   background: transparent;
 }
 .peek-locate { position: static; top: auto; right: auto; align-self: center; margin: 0 13px 0 0; flex: none; width: 54px; height: 54px; }
-.peek-locate .asset { width: 27px; height: 27px; }
+.peek-locate .asset { width: 28px; height: 28px; }
 .peek-tools { display: flex; align-items: center; justify-content: space-between; }
 .peek-photos { position: relative; margin-left: 13px; pointer-events: auto; }
 .glass-icon.peek-photos-btn { position: relative; z-index: 1; width: 54px; height: 54px; transition: transform 0.16s ease-out; }
@@ -623,7 +623,6 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   gap: 16px;
 }
 .peek-card .itinerary-intro, .sheet.itinerary .itinerary-intro { gap: 4px; }
-.sheet.itinerary .itinerary-intro { padding-top: 12px; }
 .peek-card .trip-head h1, .sheet.itinerary .trip-head h1 { font-size: 24px; line-height: normal; letter-spacing: -1.2px; }
 .peek-card .head-avatars { display: flex; padding: 0; }
 .peek-card .peek-rule { margin: -0.5px 0; }
@@ -712,7 +711,9 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   flex-direction: column;
   gap: 2px;
 }
-.sheet.itinerary .head-avatars { padding: 0; }
+/* Flex, so the button is just the 28px faces and not a line box around them: the title row is then the title's own
+   height, 8px under the handle (Figma 109:5853). */
+.sheet.itinerary .head-avatars { display: flex; padding: 0; }
 .sheet.itinerary .plans {
   padding: 0 0 96px;
   scrollbar-width: none;
@@ -727,7 +728,6 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
 }
 img.asset { width: auto; height: auto; max-width: none; flex: none; }
 /* Measured, not guessed: the rotated arrow's mass sits up-right of its box, so split the difference between box and mass. */
-.locate-icon { transform: translate(2px, -2px) rotate(-45deg); }
 .sheet > .trip-head,
 .sheet > .trip-dates,
 .sheet > .seg { padding-left: 20px; padding-right: 20px; }
@@ -761,6 +761,7 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 }
 .head-avatars { padding: 6px; }
 .trip-dates { display: flex; align-items: center; gap: 8px; margin: 0; color: #5e6678; font-weight: 500; font-size: 16px; }
+.trip-dates-dot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; flex: none; }
 .seg { display: flex; gap: 6px; margin: 0; padding: 4px 0; align-items: center; }
 .seg button, .filters button {
   transition: background-color 0.2s ease, color 0.2s ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
@@ -878,46 +879,11 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .card-meta { color: #8f8f8f; font-size: 12px; font-weight: 500; }
 .card-meta em { font-style: normal; font-weight: 400; letter-spacing: -0.15px; }
 .card.now .card-meta > span { color: #2b59f0; font-weight: 700; }
-.now-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 15.7px;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: #fff;
-  box-shadow: inset 0 0 0 1px #f0f3ff;
-  color: #2b59f0;
-}
-.now-tag .asset { width: 19.3px; height: 5.7px; }
-/* Both tags sit on the top edge of their card (Figma 109-5968, 109-6126). */
-.now-tag.on-card { position: absolute; z-index: 1; top: -6px; }
-.now-tag i { position: relative; width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
-/* A soft beacon: the dot breathes and a ring drifts out of it, slow enough to read as live rather than as an alert. */
-.now-tag i::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: currentColor;
-  animation: now-ring 2s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
-}
-.now-tag i { animation: now-breathe 2s ease-in-out infinite; }
-@keyframes now-ring {
-  0% { transform: scale(1); opacity: 0.55; }
-  70%, 100% { transform: scale(3.4); opacity: 0; }
-}
-@keyframes now-breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.35); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .now-tag i, .now-tag i::after { animation: none; }
-  .now-tag i::after { opacity: 0; }
-}
+/* The activity on now: its time, a plain dot and "now" (Figma 109:5968). */
+.card-when { display: flex; align-items: center; gap: 6px; }
+.card-when .now-dot { width: 3px; height: 3px; border-radius: 50%; background: #2b59f0; flex: none; }
+.card-when .now-word { color: #2b59f0; font-weight: 400; letter-spacing: -0.15px; }
 .peek-card { position: relative; }
-.peek-card > .now-tag.on-card { left: 20px; background: #f1f3ff; }
-.card > .now-tag.on-card { left: 16.5px; }
 .card-title { margin: 0; font-weight: 600; font-size: 18px; line-height: 25px; letter-spacing: -0.35px; color: #000; }
 .card-title > span:not(.faces), .expense-row span { display: flex; align-items: center; gap: 4px; }
 .card-title .asset, .expense-row .asset { width: 16px; height: 16px; }
@@ -2195,7 +2161,8 @@ button.meta-pill:active { transform: scale(0.96); }
   font-size: 13px;
   white-space: nowrap;
 }
-.widget-row b { flex: none; font-size: 12px; font-weight: 700; }
+/* A fixed column, wide enough for any time ("00:00" is the widest, 35.7px), so the icons and titles line up. */
+.widget-row b { flex: none; width: 36px; font-size: 12px; font-weight: 700; }
 .widget-row img { width: 14px; height: 14px; flex: none; }
 .widget-row em { font-style: normal; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .widget-row.past { color: #a4aaba; }
@@ -2895,7 +2862,7 @@ button.meta-pill:active { transform: scale(0.96); }
 /* 2 · trips. First the map tells the day, then the drawer tells today:
  *   map    0.0s  settles in · 0.2s the walked route draws, each stop appearing as the line reaches it
  *          1.0s  you land at its end, the halo opens · 1.25s what's still ahead unrolls, then its stops
- *   sheet  1.7s  the drawer rises · 1.9s today's card, its faces, then its "now" tag (the spot you just landed on)
+ *   sheet  1.7s  the drawer rises · 1.9s today's card ("now", the spot you just landed on), then its faces
  *          2.15s the poll arrives unanswered · 3.5s the first option is tapped and ticked · 3.9s the results, bars filling
  */
 .onb-trip { position: relative; width: 340px; }
@@ -2939,7 +2906,8 @@ button.meta-pill:active { transform: scale(0.96); }
 @keyframes onb-fade-in { from { opacity: 0; } }
 @keyframes onb-march { to { stroke-dashoffset: -10.5; } }
 @keyframes onb-pop { to { opacity: 1; transform: none; } }
-@keyframes onb-pin { from { opacity: 0; transform: translateY(-14px) scale(0.9); } to { opacity: 1; transform: none; } }
+/* You appear on the spot: the pin grows from nothing where it stands (its own centre), no travel. */
+@keyframes onb-pin { from { opacity: 1; transform: scale(0); } to { opacity: 1; transform: none; } }
 /* A slice of the trip drawer: same sheet, same cards, under the map. */
 /* The map is its own rounded card now, so the drawer sits just under it instead of overlapping its bottom edge. */
 .onb-sheet {
@@ -2956,15 +2924,12 @@ button.meta-pill:active { transform: scale(0.96); }
 .onb-trips .onb-sheet { opacity: 0; transform: translateY(48px); }
 .onb-trips.on .onb-sheet { animation: onb-land 0.7s cubic-bezier(0.32, 0.72, 0, 1) 1.7s forwards; }
 .onb-sheet .card { position: relative; }
-.onb-sheet .card > .now-tag.on-card { left: 16.5px; }
 .onb-sheet .card.poll { gap: 8px; }
 .onb-rise { opacity: 0; transform: translateY(18px); }
 .onb-page.on .onb-rise { animation: onb-land 0.6s cubic-bezier(0.23, 1, 0.32, 1) var(--d) forwards; }
 @keyframes onb-land { to { opacity: 1; transform: none; } }
 .onb-step { opacity: 0; transform: translateY(6px); }
 .onb-page.on .onb-step { animation: onb-land 0.45s cubic-bezier(0.23, 1, 0.32, 1) var(--d) forwards; }
-.onb-trips .card.now .now-tag { opacity: 0; transform: scale(0.9); }
-.onb-trips.on .card.now .now-tag { animation: onb-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 2.3s forwards; }
 .onb-trips .card.now .faces > * { opacity: 0; transform: translateX(-6px); }
 .onb-trips.on .card.now .faces > * { animation: onb-land 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
 .onb-trips.on .card.now .faces > :nth-child(1) { animation-delay: 2.08s; }
@@ -3060,38 +3025,34 @@ button.meta-pill:active { transform: scale(0.96); }
 .onb-fan-stamp {
   position: absolute;
   left: 50%;
-  /* While a stamp deals it is its own compositor layer, and mobile browsers crop that layer to its box, cutting off the
-     stamp's drop shadow. The padding grows the box around the shadow; the offsets put the stamp back where it was. */
   bottom: -32px;
   width: 138px;
-  padding: 16px 24px 32px;
   margin-left: -69px;
-  /* 300% of the 135px-tall stamp, below its top edge. */
+  /* 300% of the 135px-tall stamp, below its top edge (16px of shadow room above it, see .onb-fan-fly). */
   transform-origin: 50% calc(16px + 405px);
-  /* Six stamps now, one per globe city, so they fan a little tighter to keep the spread inside the page. */
+  /* Six stamps, one per globe city, fanned tight enough to keep the spread inside the page. */
   transform: rotate(calc(var(--i) * 7.5deg));
   --shadow: drop-shadow(0 10px 14px rgb(14 26 54 / 0.18));
 }
-/* Dealt on the globe's clock (`.dealing` is set the moment its route starts), so each stamp lands with its city. */
+/* The flight, inside the fan's rotation. While a stamp flies it is its own compositor layer, and mobile browsers crop
+   that layer to its box, cutting off the stamp's drop shadow, so the padding (and the room it makes) lives here. */
+.onb-fan-fly { padding: 16px 24px 32px; }
 .onb-fan-stamp { opacity: 0; }
-/* Dealt as its city's dot pops, at the same even speed as the line and the totals counting with it (DEAL_S).
-   --late is how long after the route started the class landed (Onboarding.tsx), taken off so the clocks agree. */
-.onb-pass.dealing .onb-fan-stamp { opacity: 1; animation: onb-deal 0.4s linear calc(var(--d) - var(--late, 0s)) backwards; }
-/* The stamp is solid within the first third of its travel, so it reads as a stamp moving rather than a ghost
-   materialising; the move itself stays linear end to end. */
-@keyframes onb-deal {
-  from { opacity: 0; transform: translateY(60px) rotate(0deg) scale(0.9); }
-  30% { opacity: 1; }
-}
+/* Like the photo button's tray: each stamp springs out of its city's dot (--dx/--dy, set in Onboarding.tsx) at a third
+   of its size and upright, and settles into its place in the fan with the tray's curve. --late is how long after the
+   route started the class landed, taken off so the stamps keep the globe's clock. */
+.onb-pass.dealing .onb-fan-stamp { opacity: 1; }
+.onb-pass.dealing .onb-fan-fly { animation: onb-fly 0.42s cubic-bezier(0.34, 1.3, 0.64, 1) calc(var(--d) - var(--late, 0s)) backwards; }
+@keyframes onb-fly { from { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--unfan)) scale(0.3); } }
 .onb-pass .pass-numbers dd { font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) {
   .onb-track, .onb-dots button, .onb-pile-card { transition-duration: 0s; }
   .onb-pile-card[data-depth="0"] { animation: onb-fade-in 0.2s ease; }
   .onb-bump { animation: none; }
-  .onb-logo-in, .onb-page.on .onb-copy > *, .onb-pass.dealing .onb-fan-stamp, .onb-pile-card, .onb-trips.on .onb-map-bg { animation: none; }
+  .onb-logo-in, .onb-page.on .onb-copy > *, .onb-pass.dealing .onb-fan-fly, .onb-pile-card, .onb-trips.on .onb-map-bg { animation: none; }
   .onb-trips.on :is(.onb-route-past, .onb-route-reveal) { animation: none; stroke-dashoffset: 0; }
-  .onb-trips.on :is(.onb-route-future, .onb-stop, .onb-here-pin, .onb-here-halo, .onb-sheet, .onb-rise, .onb-step, .voters, .now-tag, .faces > *),
+  .onb-trips.on :is(.onb-route-future, .onb-stop, .onb-here-pin, .onb-here-halo, .onb-sheet, .onb-rise, .onb-step, .voters, .faces > *),
   .onb-pass.live .onb-globe-wrap,
   .onb-page.on .onb-rise { animation: none; opacity: 1; transform: none; }
   .onb-trips .card.poll .bar i { animation: none; clip-path: none; }

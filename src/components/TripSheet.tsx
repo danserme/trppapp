@@ -184,11 +184,32 @@ function PhotoShortcut({ hidden = false }: { hidden?: boolean }) {
 }
 
 // The live marker for whatever is happening right now: the trip in progress, the activity under way.
-export function NowTag({ className = "" }: { className?: string }) {
+// A trip's dates, led by "ongoing" while the trip is under way (Figma 109:6125, 109:5853).
+function TripDates({ dates, ongoing }: { dates: string; ongoing: boolean }) {
   return (
-    <span className={`now-tag ${className}`.trim()} role="img" aria-label="now">
-      <i aria-hidden="true" />
-      <img className="asset" src="/assets/icons/now.svg" alt="" />
+    <p className="trip-dates">
+      {ongoing && (
+        <>
+          ongoing
+          <i className="trip-dates-dot" aria-hidden="true" />
+        </>
+      )}
+      {dates}
+    </p>
+  )
+}
+
+// A card's time, and for the activity on now a plain dot and "now" after it (Figma 109:5968).
+export function CardWhen({ time, now }: { time: string; now: boolean }) {
+  return (
+    <span className="card-when">
+      {time}
+      {now && (
+        <>
+          <i className="now-dot" aria-hidden="true" />
+          <em className="now-word">now</em>
+        </>
+      )}
     </span>
   )
 }
@@ -197,7 +218,6 @@ export function CurrentTripCard() {
   const { state, dispatch } = useStore()
   return (
     <button type="button" className="peek-card" onClick={() => dispatch({ type: "open-trip" })}>
-      <NowTag className="on-card" />
       <div className="itinerary-intro">
         <header className="trip-head">
           <h1>{state.tripTitle}</h1>
@@ -205,9 +225,7 @@ export function CurrentTripCard() {
             <PhotoStack kind="header" ids={state.members} extra={1} />
           </span>
         </header>
-        <p className="trip-dates">
-          <img className="asset" src="/assets/icons/calendar.svg" alt="" /> {tripRange(state.tripStart, state.tripEnd)}
-        </p>
+        <TripDates dates={tripRange(state.tripStart, state.tripEnd)} ongoing />
       </div>
       <hr className="peek-rule" />
       <div className="peek-progress">
@@ -323,8 +341,7 @@ function TripSheetBody() {
     }
     const top = current.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
     const previous = current.previousElementSibling as HTMLElement | null
-    // The now card's tag sits on its top edge, so keep it clear of the scroller's top fade.
-    const peek = current.matches(".pending") ? 20 : previous ? previous.offsetHeight * 0.75 + 44 : current.querySelector(".now-tag") ? 26 : 0
+    const peek = current.matches(".pending") ? 20 : previous ? previous.offsetHeight * 0.75 + 44 : 0
     scroller.scrollTop = Math.max(0, top - peek)
   }, [state.day, tab, state.snap, poll?.question, focus, plans])
   const gap = pastDay ? undefined : plans.find((stop) => stop.kind === "gap")
@@ -366,9 +383,7 @@ function TripSheetBody() {
               <PhotoStack kind="header" ids={head.members} extra={head.extra} />
             </button>
           </header>
-          <p className="trip-dates">
-            <img className="asset" src="/assets/icons/calendar.svg" alt="" /> {head.dates}
-          </p>
+          <TripDates dates={head.dates} ongoing={state.trip === "lisbon"} />
         </div>
         <div className="itinerary-main">
           <div className="seg">
@@ -577,9 +592,8 @@ function StopCard({ stop }: { stop: Stop }) {
   }
   const card = (
     <article className={stop.tone === "now" ? "card now tappable" : "card tappable"} data-stop={stop.id === "poll-result" ? "poll" : stop.id} onClick={tap}>
-      {stop.tone === "now" && state.day === TODAY && state.trip === "lisbon" && <NowTag className="on-card" />}
       <div className="card-meta">
-        <span>{stop.time}</span>
+        <CardWhen time={stop.time} now={stop.tone === "now" && state.day === TODAY && state.trip === "lisbon"} />
         <em>{stop.status}</em>
       </div>
       <div className="card-title">

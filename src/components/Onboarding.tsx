@@ -3,10 +3,10 @@ import * as maplibregl from "maplibre-gl"
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url"
 import { globePlaces, initialExpenses, passportArcs, passportStamps, people, tripNights, trips, tuesdayPoll } from "../data"
 import { STYLE_URL, applyPalette, daylight } from "../mapStyle"
-import { dotTimes, playRoute } from "../globeReveal"
+import { DOT_MS, dotTimes, playRoute } from "../globeReveal"
 import { dayStops, place } from "../state"
 import { StampArt } from "./Passport"
-import { NowTag } from "./TripSheet"
+import { CardWhen } from "./TripSheet"
 import { AvatarStack, PhotoStack, StatusBar } from "./chrome"
 import { ActivityIcon, IconChevron } from "./icons"
 
@@ -352,9 +352,8 @@ function TripsVisual({ on }: { on: boolean }) {
       </div>
       <div className="onb-sheet">
         <article className="card now onb-rise" style={{ "--d": "1.9s" } as CSSProperties}>
-          <NowTag className="on-card" />
           <div className="card-meta">
-            <span>{nowStop.time}</span>
+            <CardWhen time={nowStop.time} now />
             <em>{nowStop.status}</em>
           </div>
           <div className="card-title">
@@ -582,19 +581,25 @@ function ExpensesVisual({ on }: { on: boolean }) {
 
 maplibregl.setWorkerUrl(workerUrl)
 
-// The Passport's globe telling the route as a journey, one beat per city, all timed from the line's arrival and all
-// at an even, linear speed so the journey flows without stops:
-//   0ms    the line reaches the city and its dot pops; the city's stamp deals in and the totals count up what it adds,
-//          both over DEAL_S, so the numbers move with the stamp
-//   180ms  the line leaves for the next city, reaching it ~560ms after it got here
-const REVEAL_START = 0.2
-// The Passport tab's reveal, a fifth slower so each stop can be read (dots 180ms, lines 384ms), and linear.
-const PACE = { pace: 1.2, linear: true }
-const DEAL_S = 0.4
+// The Passport's globe telling the route as a journey, one beat per city, the line and the dots at an even, linear
+// speed. Each city hands over its stamp the way the photo button hands out photos: as the line reaches the city its
+// dot pops and the stamp springs out of that dot into its place in the fan, and the totals count up as it flies.
+//   0ms     the line reaches the city and its dot pops
+//   120ms   the dot is out: the stamp springs out of it and the totals start to count; the line leaves for the next
+//           city, reaching it 376ms after it got here
+//   540ms   the stamp settles into the fan, and the totals with it
+// The flight outlasts the beat, so each stamp is still settling as the next one springs out.
+// The route waits a beat before the first city, so the page has slid in before the first stamp flies.
+const DEAL_S = 0.42
+const REVEAL_START = 0.45
+// The Passport tab's reveal, a fifth quicker (dots 120ms, lines 256ms), and linear.
+const PACE = { pace: 0.8, linear: true }
 const times = dotTimes(globePlaces.length, PACE)
 // When each city's dot starts to pop, in seconds from the moment the route starts.
 const arriveAt = (index: number) => REVEAL_START + times[index] / 1000
-const dealt = globePlaces.map((item, index) => ({ stamp: item, at: arriveAt(index) }))
+// When its stamp springs out: once the dot has popped, which also gives the map the moment it takes to draw the dot.
+const leaveAt = (index: number) => arriveAt(index) + (DOT_MS * PACE.pace) / 1000
+const dealt = globePlaces.map((item, index) => ({ stamp: item, at: leaveAt(index) }))
 
 // The Passport's totals as they stand once each city is on the globe. A trip's nights, and any of its cities the globe
 // doesn't show (Rotterdam), are counted with the trip's first city on the globe.
@@ -636,7 +641,7 @@ function useTally(start: number | null) {
       const beats = { ...still }
       tally.forEach((step, index) => {
         const before = tally[index - 1] ?? zero
-        const from = arriveAt(index)
+        const from = leaveAt(index)
         if (elapsed < from) return
         const t = Math.min((elapsed - from) / DEAL_S, 1)
         for (const key of KEYS) {
@@ -645,7 +650,7 @@ function useTally(start: number | null) {
         }
       })
       setState((last) => (KEYS.every((key) => last.totals[key] === totals[key] && last.beats[key] === beats[key]) ? last : { totals, beats }))
-      if (elapsed < arriveAt(tally.length - 1) + DEAL_S) frame = requestAnimationFrame(tick)
+      if (elapsed < leaveAt(tally.length - 1) + DEAL_S) frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => {
@@ -660,8 +665,12 @@ const places = globePlaces.map((item) => ({ coord: item.coord }))
 const route = passportArcs.map((coordinates) => ({ coordinates }))
 
 // Mounted only once the page is near, so the launch doesn't pay for a second map; kept alive after that.
-// `onStart` hears the moment (performance.now()) the route starts, and null when it is cleared.
-function OnbGlobe({ on, onStart }: { on: boolean; onStart: (start: number | null) => void }) {
+// Where each city's dot is on screen, in client pixels.
+type Locate = () => { x: number; y: number }[]
+
+// `onStart` hears the moment (performance.now()) the route starts, with a way to find the cities' dots on screen, and
+// null when it is cleared.
+function OnbGlobe({ on, onStart }: { on: boolean; onStart: (start: { at: number; locate: Locate } | null) => void }) {
   const node = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [ready, setReady] = useState(false)
@@ -718,9 +727,16 @@ function OnbGlobe({ on, onStart }: { on: boolean; onStart: (start: number | null
   useEffect(() => {
     const map = mapRef.current
     if (!on || !ready || !map) return
-    const start = performance.now()
+    const at = performance.now()
     const stop = playRoute(map.getSource("onb-passport") as maplibregl.GeoJSONSource, places, route, REVEAL_START * 1000, PACE)
-    onStart(start)
+    const locate: Locate = () => {
+      const box = map.getContainer().getBoundingClientRect()
+      return places.map(({ coord }) => {
+        const point = map.project(coord)
+        return { x: box.left + point.x, y: box.top + point.y }
+      })
+    }
+    onStart({ at, locate })
     return () => {
       stop(true)
       onStart(null)
@@ -753,23 +769,45 @@ function PassportVisual({ on: shown, near }: { on: boolean; near: boolean }) {
   // Everything below runs on the globe's clock, from the moment its route starts, not the moment the page shows or
   // React gets round to it: the map may still be loading when the page arrives, and the stamps and totals have to move
   // with the lines.
-  const [start, setStart] = useState<number | null>(null)
-  const going = on && start !== null
-  const { totals, beats } = useTally(going ? start : null)
+  const [route, setRoute] = useState<{ at: number; locate: Locate } | null>(null)
+  const start = on && route ? route.at : null
+  const { totals, beats } = useTally(start)
   const node = useRef<HTMLDivElement>(null)
-  // The stamps' deal delays count from the route's start, so however late the class lands they are caught up.
+  // The stamps fly once each knows the way from its city's dot to its place in the fan.
+  const [aimed, setAimed] = useState(false)
+  if (start === null && aimed) setAimed(false)
   useLayoutEffect(() => {
-    if (going && start !== null) node.current?.style.setProperty("--late", `${(performance.now() - start) / 1000}s`)
-  }, [going, start])
+    if (start === null || aimed || !route || !node.current) return
+    const dots = route.locate()
+    node.current.querySelectorAll<HTMLElement>(".onb-fan-fly").forEach((fly, index) => {
+      // Measured at rest (the flight hasn't started), so this is where the stamp ends up, fan angle and all. The flight
+      // runs inside the fan's rotation, so the way back to the dot is turned into the stamp's own frame.
+      const box = (fly.firstElementChild as HTMLElement).getBoundingClientRect()
+      const angle = ((index - (dealt.length - 1) / 2) * 7.5 * Math.PI) / 180
+      const dx = dots[index].x - (box.left + box.width / 2)
+      const dy = dots[index].y - (box.top + box.height / 2)
+      fly.style.setProperty("--dx", `${dx * Math.cos(angle) + dy * Math.sin(angle)}px`)
+      fly.style.setProperty("--dy", `${-dx * Math.sin(angle) + dy * Math.cos(angle)}px`)
+      fly.style.setProperty("--unfan", `${-angle}rad`)
+    })
+    setAimed(true)
+  }, [start, aimed, route])
+  const dealing = start !== null && aimed
+  // The stamps' delays count from the route's start, so however late the class lands they are caught up.
+  useLayoutEffect(() => {
+    if (dealing && start !== null) node.current?.style.setProperty("--late", `${(performance.now() - start) / 1000}s`)
+  }, [dealing, start])
   return (
-    <div ref={node} className={["onb-pass", on && "live", going && "dealing"].filter(Boolean).join(" ")}>
+    <div ref={node} className={["onb-pass", on && "live", dealing && "dealing"].filter(Boolean).join(" ")}>
       <div className="onb-globe-wrap" aria-hidden="true">
-        {near && <OnbGlobe on={on} onStart={setStart} />}
+        {near && <OnbGlobe on={on} onStart={setRoute} />}
       </div>
       <div className="onb-fan">
         {dealt.map(({ stamp: item, at }, index) => (
           <div key={item.id} className="onb-fan-stamp" style={{ "--i": index - (dealt.length - 1) / 2, "--d": `${at}s` } as CSSProperties}>
-            <StampArt stamp={item} />
+            <div className="onb-fan-fly">
+              <StampArt stamp={item} />
+            </div>
           </div>
         ))}
       </div>
