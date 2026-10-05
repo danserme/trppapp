@@ -167,16 +167,12 @@ export function FriendsPanel() {
   )
 }
 
-// The invite QR in the brand style (Figma 91:4412): rounded modules that merge along runs, rounded corner markers with
-// a round eye, and the TripUp wordmark laid over the code with a white outline round each letter. The outline hides
-// only the modules right at the letters, so error correction H (30%) carries it at the frame's full size.
-const STROKE = 2.4
-
+// The invite QR in the brand style (Figma 91:4412): rounded modules that merge along runs, and rounded corner markers
+// with a round eye. Nothing covers the code, so error correction M keeps it sparse.
 function BrandQR({ value }: { value: string }) {
-  const { modules } = QRCode.create(value, { errorCorrectionLevel: "H" })
+  const { modules } = QRCode.create(value, { errorCorrectionLevel: "M" })
   const n = modules.size
   const quiet = 1
-  const font = (34.8 / 150) * (n + quiet * 2)
   const finder = (r: number, c: number) => (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7)
   const on = (r: number, c: number) => r >= 0 && c >= 0 && r < n && c < n && modules.get(r, c) === 1 && !finder(r, c)
   let d = ""
@@ -210,9 +206,6 @@ function BrandQR({ value }: { value: string }) {
           <circle cx={c + 3.5} cy={r + 3.5} r={1.5} />
         </g>
       ))}
-      <text x={n / 2} y={n / 2} textAnchor="middle" dominantBaseline="central" fill="#2b59f0" stroke="#fff" strokeWidth={STROKE} strokeLinejoin="round" paintOrder="stroke" fontFamily="Manrope, sans-serif" fontWeight={800} fontSize={font} letterSpacing={(1.196 / 150) * (n + quiet * 2)}>
-        TripUp
-      </text>
     </svg>
   )
 }

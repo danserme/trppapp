@@ -9,7 +9,7 @@ const lisbon = trips.find((trip) => trip.id === "lisbon")!
 const agenda = [
   { time: "15:00", icon: "/assets/home/w-museum.svg", title: "Museum of Arts", tone: "past" },
   { time: "17:00", icon: "/assets/home/w-hotel.svg", title: "Hotel Da Baixa", tone: "now" },
-  { time: "20:00", icon: "/assets/home/w-pin.svg", title: "Dinner · poll 4/5", tone: "next" },
+  { time: "20:00", icon: "/assets/home/w-pin.svg", title: "Dinner · poll 4/7", tone: "next" },
 ] as const
 
 function AppIcon() {
@@ -61,7 +61,7 @@ export function HomeScreen() {
           </span>
           <span className="widget-agenda">
             {agenda.map((row) => (
-              <span key={row.time} className={`widget-row ${row.tone}`}>
+              <span key={row.time} className={row.tone === "now" ? "widget-row now glass" : `widget-row ${row.tone}`}>
                 <b>{row.time}</b>
                 <img src={row.icon} alt="" />
                 <em>{row.title}</em>
@@ -76,13 +76,14 @@ export function HomeScreen() {
           <span className="widget-card">
             <img className="widget-map-bg" src="/assets/home/widget-map.png" alt="" />
             <img className="widget-map-shot" src="/assets/home/widget-shot.png" alt="" />
-            <span className="widget-map-panel">
+            <span className="widget-map-panel glass">
               <span>
                 <b>Day 2/3</b>
                 <em>3 stops left</em>
               </span>
               <DaySegments fills={days.map((item) => item.progress)} />
             </span>
+            <span className="widget-map-veil" />
           </span>
           <span className="widget-label">TripUp</span>
         </button>

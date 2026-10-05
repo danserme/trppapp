@@ -23,6 +23,7 @@ import { awayEntries, mapPaths, stopKey } from "../mapPaths"
 import { STYLE_URL, applyPalette, type Palette } from "../mapStyle"
 import { playRoute } from "../globeReveal"
 import { TODAY } from "../state"
+import { refracts } from "../glass"
 
 maplibregl.setWorkerUrl(workerUrl)
 
@@ -215,6 +216,9 @@ export function MapView({ palette, locateTick, year, sheetTop, focus, highlight,
       dragRotate: false,
       pitchWithRotate: false,
       fadeDuration: 0,
+      // Without refraction in backdrop-filter, the glass copies the map's pixels every frame, so they must survive
+      // past the frame the map drew them in.
+      canvasContextAttributes: { preserveDrawingBuffer: !refracts },
     })
     map.touchZoomRotate.disableRotation()
     mapRef.current = map

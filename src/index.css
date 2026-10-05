@@ -178,6 +178,34 @@ html[data-mode="app"] #root {
   transition: transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1), box-shadow 0.2s ease;
 }
 :root[data-refract] .glass { backdrop-filter: var(--glass-lens, url(#liquid-glass)) var(--glass-filter); }
+/* WebKit over the map (glass.ts): the glass draws its own refracted copy of the map, then its surface again on top,
+   since the copy sits above the element's own background. The copy bleeds 8px past each side for the blur and is cut
+   back to the glass's shape. */
+.glass-mirror, .glass-coat { display: none; }
+.glass[data-mirror] { isolation: isolate; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.glass[data-mirror] > .glass-mirror {
+  display: block;
+  position: absolute;
+  z-index: -1;
+  left: -8px;
+  top: -8px;
+  width: calc(100% + 16px);
+  height: calc(100% + 16px);
+  pointer-events: none;
+  filter: var(--glass-filter);
+  clip-path: inset(8px round var(--glass-r));
+}
+.glass[data-mirror] > .glass-coat {
+  display: block;
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: inherit;
+  box-shadow: inherit;
+  clip-path: inset(0 round var(--glass-r));
+}
 button.glass:active { transform: scale(0.94); }
 @media (prefers-reduced-motion: reduce) {
   .glass { transition: none; }
@@ -472,7 +500,6 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   justify-content: flex-end;
 }
 .drawer-fill.open > .sheet-frame { pointer-events: auto; }
-.drawer-fill[data-lifting] .sheet-frame, .drawer-fill[data-lifting] .sheet-above { transition: none; }
 .sheet-frame {
   flex: none;
   height: calc(100% - 8px);
@@ -481,8 +508,9 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   box-shadow: 0 -4px 30px rgba(14, 26, 54, 0.15);
   background: #fff;
   overflow: hidden;
-  transition: height 0.42s cubic-bezier(0.32, 0.72, 0, 1);
 }
+/* A sheet that hugs its content eases to its new size when the content changes. */
+.sheet-frame.hug { transition: height 0.42s cubic-bezier(0.32, 0.72, 0, 1); }
 .sheet-frame > .sheet { height: 100%; }
 .sheet-frame.hug > .sheet { height: auto; flex: none; }
 @media (prefers-reduced-motion: reduce) {
@@ -528,8 +556,8 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   z-index: 1;
   padding-bottom: 12px;
   pointer-events: none;
-  transition: bottom 0.42s cubic-bezier(0.32, 0.72, 0, 1);
 }
+.sheet-above.hug { transition: bottom 0.42s cubic-bezier(0.32, 0.72, 0, 1); }
 @media (prefers-reduced-motion: reduce) {
   .sheet-above { transition: none; }
 }
@@ -1430,9 +1458,10 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .stamp-strip.all .pass-stamp-btn { margin-right: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; width: auto; }
 .stamp-strip.all .future-stamp { margin: 0; align-self: center; }
 .page.invite, .page.composer, .page.edit-page { background: #fff; }
-.invite-hero { display: flex; flex-direction: column; align-items: center; gap: 16px; margin: 20px 0 8px; }
-.invite .invite-sub { margin-top: 32px; }
-.qr-card { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 22px 22px 14px; border-radius: 28px; background: #fff; box-shadow: 0 0 0 1px #eef0f4, 0 12px 28px -16px rgba(14, 26, 54, 0.22); }
+/* One rhythm: 8px or less inside a group (the QR, its link and the share button are one), 32px between sections. */
+.invite-hero { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 32px 0 0; }
+.invite .invite-sub { margin: 32px 0 0; }
+.qr-card { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .invite .qr { width: 150px; margin: 0; background: transparent; }
 .invite .qr svg { width: 150px; height: 150px; display: block; background: transparent; }
 .link-copy { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; padding: 6px 10px; border-radius: 999px; color: #5e6678; font-size: 13px; font-weight: 500; }
@@ -1445,8 +1474,8 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .link-copy.copied .link-copy-icon .asset + .asset { opacity: 1; transform: none; filter: brightness(0) invert(0.45); }
 .share { display: inline-flex; align-items: center; gap: 8px; background: #f1f2f5; color: #000; font-weight: 500; font-size: 15px; padding: 12px 18px; border-radius: 34px; margin: 0; }
 .invite .hint { color: #5e6678; font-size: 14px; font-weight: 400; margin: 16px 0 0; padding: 0 4px; text-align: left; }
-.invite h2 { font-size: 20px; font-weight: 600; margin: 28px 0 4px; }
-.invite .search-field { border-radius: 26px; }
+.invite h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.2px; line-height: 1.3; margin: 32px 0 0; }
+.invite .search-field { margin: 8px 0 0; border-radius: 26px; }
 .member-list.checks li { padding: 0; border-bottom-color: rgba(198, 198, 198, 0.5); }
 .member-list.checks button { gap: 12px; padding: 14px 0; }
 .member-list.checks span { font-weight: 400; font-size: 16px; }
@@ -2152,26 +2181,35 @@ button.meta-pill:active { transform: scale(0.96); }
 .widget-left { width: 112px; flex: none; display: flex; flex-direction: column; justify-content: space-between; }
 .widget-left small, .widget-left strong { display: block; }
 .widget-left small { color: #666; font-size: 10px; font-weight: 800; letter-spacing: 0.8px; line-height: 14px; }
-.widget-left strong { margin-top: 4px; color: #1a2138; font-family: Inter, sans-serif; font-size: 18px; font-weight: 500; line-height: 21px; letter-spacing: -0.3px; }
-.widget-foot { display: flex; flex-direction: column; gap: 10px; }
+.widget-left strong { margin-top: 4px; color: #1a2138; font-family: Inter, sans-serif; font-size: 18px; font-weight: 400; line-height: 21px; letter-spacing: -0.3px; }
+.widget-foot { display: flex; flex-direction: column; gap: 8px; }
 .widget-foot .segments { width: 112px; gap: 3px; }
-.widget-agenda { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.widget-agenda { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
 .widget-row {
   height: 36px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 0 10px;
   border-radius: 14px;
   font-size: 13px;
   white-space: nowrap;
 }
-.widget-row b { width: 36px; flex: none; font-size: 12px; font-weight: 700; }
+.widget-row b { flex: none; font-size: 12px; font-weight: 700; }
 .widget-row img { width: 14px; height: 14px; flex: none; }
-.widget-row em { font-style: normal; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.widget-row em { font-style: normal; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .widget-row.past { color: #a4aaba; }
-.widget-row.past img { opacity: 0.5; }
-.widget-row.now { background: #edf1ff; }
+/* Today's stop sits in blue-tinted glass (Figma 48:17531): Figma's 10% blue fill as its glass effect renders it on
+   the white card, its thickness read in the edge, which falls into soft shade at the top-left and catches a little
+   light at the bottom-right. No rim, no drop shadow. */
+.widget-row.now.glass {
+  background: rgb(243 246 252);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow:
+    inset 3px 4px 10px -3px rgb(40 52 96 / 0.07),
+    inset -2px -2px 3px -1px rgb(255 255 255 / 0.6);
+}
 .widget-row.now b { color: #3461fd; }
 .widget-row.now em { color: #1a2138; font-weight: 700; }
 .widget-row.next b { color: #6f768b; }
@@ -2191,14 +2229,29 @@ button.meta-pill:active { transform: scale(0.96); }
   flex-direction: column;
   gap: 6px;
   padding: 8px 8px 10px;
-  background: #fff;
-  border: 1px solid rgba(208, 214, 227, 0.7);
   border-radius: 16px;
+}
+/* The day's progress floats on the map in clear glass (Figma 48:17845): the 70% white fill thinned a little so the
+   lens shows the map bending at its rim. */
+.widget-map-panel.glass {
+  position: absolute;
+  background:
+    radial-gradient(120% 90% at 30% 0%, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0) 60%),
+    rgb(255 255 255 / 0.55);
+  box-shadow:
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.85),
+    inset 1.5px 1.5px 0.5px -1px rgb(255 255 255 / 0.95),
+    inset -1.5px -1.5px 0.5px -1px rgb(255 255 255 / 0.7),
+    inset 0 -8px 14px -10px rgb(255 255 255 / 0.8),
+    0 0 0 0.5px rgb(14 26 54 / 0.06),
+    0 4px 12px -4px rgb(14 26 54 / 0.12);
 }
 .widget-map-panel > span:first-child { height: 18px; display: flex; justify-content: space-between; align-items: center; }
 .widget-map-panel b { color: #000; font-size: 12px; font-weight: 500; }
 .widget-map-panel em { color: #6f768b; font-size: 12px; font-style: normal; font-weight: 400; }
 .widget-map-panel .segments { gap: 3px; }
+/* Figma 118:2058: a faint white veil over the left of the map. */
+.widget-map-veil { position: absolute; left: -8px; top: -4px; width: 112px; height: 175px; background: rgb(255 255 255 / 0.1); }
 .widget-map-panel .segments i, .widget-map-panel .segments b { border-radius: 2px; }
 .app-tile { gap: 6px; }
 .app-icon {
@@ -2714,10 +2767,12 @@ button.meta-pill:active { transform: scale(0.96); }
    highlights (kept as images), so it still fades between the splash and the rest as the pages change. */
 .onb-skip.glass, .onb-next.glass {
   background-image:
-    radial-gradient(120% 90% at 30% 0%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 60%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.08));
+    radial-gradient(120% 90% at 30% 0%, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03));
 }
 .onb-skip.glass { background-color: rgb(241 242 245 / 0.4); }
+/* Their backdrop is the page's flat colour and the sunrise, so a lighter frost keeps them clear rather than milky. */
+.onb-skip.glass, .onb-next.glass { --glass-filter: blur(1.5px) saturate(1.6); }
 .onb-skip:active { transform: scale(0.95); }
 .onb-skip.away { opacity: 0; pointer-events: none; }
 .onb-foot {
@@ -2770,7 +2825,7 @@ button.meta-pill:active { transform: scale(0.96); }
 .onb[data-page="splash"] .onb-next::after { opacity: 0; }
 .onb-next:active { transform: scale(0.96); }
 /* On the blue splash the chrome flips to white. */
-.onb[data-page="splash"] .onb-skip { background-color: rgb(255 255 255 / 0.12); color: #fff; }
+.onb[data-page="splash"] .onb-skip { background-color: rgb(255 255 255 / 0.04); color: #fff; }
 .onb[data-page="splash"] .onb-dots button { background: rgb(255 255 255 / 0.35); }
 .onb[data-page="splash"] .onb-dots button.on { background: #fff; }
 /* "Get started": clear glass on the blue, with a sheen across the top, refracted light pooling at the bottom and edges
@@ -2778,10 +2833,10 @@ button.meta-pill:active { transform: scale(0.96); }
 .onb[data-page="splash"] .onb-next {
   background-color: rgb(61 103 242 / 0);
   background-image:
-    radial-gradient(90% 60% at 50% 0%, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 70%),
-    radial-gradient(70% 80% at 50% 115%, rgba(150, 185, 255, 0.75), rgba(150, 185, 255, 0) 70%),
-    radial-gradient(110% 160% at 50% 50%, rgba(18, 52, 200, 0) 50%, rgba(160, 190, 255, 0.35) 100%),
-    linear-gradient(rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.2));
+    radial-gradient(90% 60% at 50% 0%, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0) 70%),
+    radial-gradient(70% 80% at 50% 115%, rgba(150, 185, 255, 0.5), rgba(150, 185, 255, 0) 70%),
+    radial-gradient(110% 160% at 50% 50%, rgba(18, 52, 200, 0) 50%, rgba(160, 190, 255, 0.3) 100%),
+    linear-gradient(rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.06));
   box-shadow:
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.75),
     inset 1.5px 1.5px 0.5px -1px rgba(255, 255, 255, 0.95),
@@ -2796,33 +2851,58 @@ button.meta-pill:active { transform: scale(0.96); }
 .onb-splash .onb-copy h1 { white-space: pre-line; font-family: Manrope, sans-serif; font-weight: 800; font-size: 34px; line-height: 1.08; letter-spacing: -1.3px; color: #fff; }
 .onb-splash .onb-copy p { font-size: 17px; color: rgb(255 255 255 / 0.85); }
 .onb-sunrise { position: absolute; left: -328px; top: -524px; width: 820px; height: 820px; max-width: none; opacity: 0.9; pointer-events: none; }
-.onb-splash .onb-visual { perspective: 1000px; }
-/* Outer layer: the entrance and the finger's tilt. Inner layer: the idle sway. They multiply, so a grab never jumps. */
+.onb-logo-in {
+  /* The entrance lives out here and the 3D scene starts inside (the perspective is for this box's children): an
+     element under a running transform animation is flattened by Chrome, so with the entrance on the tilt layer the
+     stamp's perspective switched on only as the entrance ended, and the turned stamp jumped. */
+  perspective: 1000px;
+  animation: onb-stamp-in 0.9s cubic-bezier(0.2, 0.9, 0.3, 1.15) backwards;
+  /* Kept as its own layer after the entrance too, so it isn't repainted when the entrance ends (a sub-pixel snap). */
+  will-change: transform;
+}
+/* Outer layer: the finger's tilt. Inner layer: the idle sway. They multiply, so a grab never jumps. */
 .onb-logo-tilt {
   transform-style: preserve-3d;
   cursor: grab;
   touch-action: none;
   transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation: onb-stamp-in 0.9s cubic-bezier(0.2, 0.9, 0.3, 1.15) backwards;
 }
 .onb-logo-tilt.grabbed { cursor: grabbing; transition: transform 0.08s linear; }
-/* The app icon's stamp drawn in its own 57.5-unit space and zoomed, so the SVGs and the wordmark stay crisp. */
-.onb-logo-wrap { zoom: 5; transform-style: preserve-3d; }
+/* The app icon's stamp at 5× its icon size. Laid out at full size rather than with `zoom`, which Safari rasterizes at
+   the unzoomed size and scales up, pixelating the stamp. Safari also paints a 3D-turned layer once at its layout size
+   and resamples it as it turns, softening the edges, so it is laid out at 10× and drawn at half scale: the layer has
+   twice the pixels it shows. The negative margins give back the extra layout size. The scale halves depth too, or the
+   turning stamp would reach twice as far towards the viewer and its perspective would warp. */
+.onb-logo-wrap {
+  --z: 10;
+  scale: 0.5 0.5 0.5;
+  margin: calc(71.47px * var(--z) / -4) calc(57.5px * var(--z) / -4);
+  transform-style: preserve-3d;
+}
 .app-icon-stamp.onb-logo {
   position: relative;
   left: auto;
   top: auto;
+  width: calc(57.5px * var(--z));
+  height: calc(71.47px * var(--z));
   transform-style: preserve-3d;
-  animation: onb-sway 7s ease-in-out 0.9s infinite, onb-sheen 7s ease-in-out 0.9s infinite;
+  /* The sway holds its first pose through the entrance (backwards), so the stamp rises already turned into it and the
+     sway picks up from there, rather than lying flat and snapping round when it starts. */
+  animation: onb-sway 7s ease-in-out 0.9s infinite backwards, onb-sheen 7s ease-in-out 0.9s infinite backwards;
 }
 /* While held, the sway freezes where it is and the sheen follows the finger (inline variables) instead of the clock. */
-.onb-logo-tilt.grabbed .onb-logo { animation: onb-sway 7s ease-in-out 0.9s infinite; animation-play-state: paused; }
+.onb-logo-tilt.grabbed .onb-logo { animation: onb-sway 7s ease-in-out 0.9s infinite backwards; animation-play-state: paused; }
+.onb-logo > .app-icon-paper,
+.onb-logo > .stamp-holo {
+  left: calc(-3.97px * var(--z));
+  top: calc(-0.47px * var(--z));
+  width: calc(65.44px * var(--z));
+  height: calc(79.41px * var(--z));
+}
+.onb-logo > .app-icon-art { left: calc(8.42px * var(--z)); top: calc(8.42px * var(--z)); width: calc(40.66px * var(--z)); height: calc(41.77px * var(--z)); }
+.onb-logo > b { left: calc(1.78px * var(--z)); top: calc(50.49px * var(--z)); width: calc(54px * var(--z)); font-size: calc(10.165px * var(--z)); letter-spacing: calc(0.35px * var(--z)); }
 .onb-logo > .stamp-holo {
   position: absolute;
-  left: -3.97px;
-  top: -0.47px;
-  width: 65.44px;
-  height: 79.41px;
   pointer-events: none;
   -webkit-mask: url(/assets/brand/icon-stamp-mask.svg) 0 0 / 100% 100% no-repeat;
   mask: url(/assets/brand/icon-stamp-mask.svg) 0 0 / 100% 100% no-repeat;
@@ -2999,36 +3079,47 @@ button.meta-pill:active { transform: scale(0.96); }
   mask-image: linear-gradient(#000 38%, transparent 82%);
   opacity: 0;
 }
-.onb-passport.on .onb-globe-wrap { animation: onb-fade 0.4s linear forwards; }
+.onb-pass.live .onb-globe-wrap { animation: onb-fade 0.4s linear forwards; }
 .onb-globe { width: 100%; height: 100%; }
 .onb-globe canvas { outline: none; }
 .onb-fan { position: relative; width: 100%; height: 165px; }
 .onb-fan-stamp {
   position: absolute;
   left: 50%;
-  bottom: 0;
-  width: 90px;
-  margin-left: -45px;
-  transform-origin: 50% 300%;
+  /* While a stamp deals it is its own compositor layer, and mobile browsers crop that layer to its box, cutting off the
+     stamp's drop shadow. The padding grows the box around the shadow; the offsets put the stamp back where it was. */
+  bottom: -32px;
+  width: 138px;
+  padding: 16px 24px 32px;
+  margin-left: -69px;
+  /* 300% of the 135px-tall stamp, below its top edge. */
+  transform-origin: 50% calc(16px + 405px);
   /* Six stamps now, one per globe city, so they fan a little tighter to keep the spread inside the page. */
   transform: rotate(calc(var(--i) * 7.5deg));
   --shadow: drop-shadow(0 10px 14px rgb(14 26 54 / 0.18));
 }
 /* Dealt on the globe's clock (`.dealing` is set the moment its route starts), so each stamp lands with its city. */
 .onb-fan-stamp { opacity: 0; }
-.onb-pass.dealing .onb-fan-stamp { opacity: 1; animation: onb-deal 0.45s linear var(--d) backwards; }
-@keyframes onb-deal { from { opacity: 0; transform: translateY(60px) rotate(0deg) scale(0.85); } }
+/* Dealt as its city's dot pops, at the same even speed as the line and the totals counting with it (DEAL_S).
+   --late is how long after the route started the class landed (Onboarding.tsx), taken off so the clocks agree. */
+.onb-pass.dealing .onb-fan-stamp { opacity: 1; animation: onb-deal 0.4s linear calc(var(--d) - var(--late, 0s)) backwards; }
+/* The stamp is solid within the first third of its travel, so it reads as a stamp moving rather than a ghost
+   materialising; the move itself stays linear end to end. */
+@keyframes onb-deal {
+  from { opacity: 0; transform: translateY(60px) rotate(0deg) scale(0.9); }
+  30% { opacity: 1; }
+}
 .onb-pass .pass-numbers dd { font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) {
   .onb-track, .onb-dots button, .onb-pile-card, .onb-logo-tilt { transition-duration: 0s; }
   .onb-pile-card[data-depth="0"] { animation: onb-fade-in 0.2s ease; }
   .onb-bump { animation: none; }
-  .onb-logo, .onb-logo-tilt, .onb-page.on .onb-copy > *, .onb-pass.dealing .onb-fan-stamp, .onb-pile-card, .onb-trips.on .onb-map-bg { animation: none; }
+  .onb-logo, .onb-logo-in, .onb-page.on .onb-copy > *, .onb-pass.dealing .onb-fan-stamp, .onb-pile-card, .onb-trips.on .onb-map-bg { animation: none; }
   .onb-logo { transform: rotateY(-8deg) rotateX(3deg) rotate(-6deg); --card-opacity: 0.6; }
   .onb-trips.on :is(.onb-route-past, .onb-route-reveal) { animation: none; stroke-dashoffset: 0; }
   .onb-trips.on :is(.onb-route-future, .onb-stop, .onb-here-pin, .onb-here-halo, .onb-sheet, .onb-rise, .onb-step, .voters, .now-tag, .faces > *),
-  .onb-passport.on .onb-globe-wrap,
+  .onb-pass.live .onb-globe-wrap,
   .onb-page.on .onb-rise { animation: none; opacity: 1; transform: none; }
   .onb-trips .card.poll .bar i { animation: none; clip-path: none; }
   .card.poll .onb-poll-ask, .card.poll .onb-poll-results { transition: none; }

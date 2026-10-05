@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Drawer } from "vaul"
 import { MapView, type MapFocus, type MapHighlight } from "./components/MapView"
 import { HomeScreen } from "./components/HomeScreen"
@@ -47,31 +47,34 @@ function useScale() {
   return scale
 }
 
-// While a drag is under way vaul moves the drawer but its height stays at the last snap point, so dragging up would
-// lift the sheet's bottom edge off the screen. Watch the drawer's transform and stretch the sheet by the same amount.
-function useStretchOnDrag(content: HTMLElement | null, snapPx: number) {
-  const base = useRef(snapPx)
-  useEffect(() => {
-    base.current = snapPx
-  }, [snapPx])
+// vaul moves the drawer by its transform, both under the finger and while it springs to a snap point, but the sheet's
+// height stays at the last snap point, so its bottom edge would travel with the top. Instead the sheet always reaches
+// from the drawer's top to the bottom of the screen: under the finger its height follows the drag directly, and when
+// vaul springs the drawer to a snap point the height takes the same transition to the matching size, so top and
+// bottom stay in step on every frame and the sheet stretches and shrinks in place.
+function usePinnedBottom(content: HTMLElement | null) {
   useEffect(() => {
     const fill = content?.querySelector<HTMLElement>(".drawer-fill")
     if (!content || !fill) return
-    const sync = () => {
-      const dragging = content.style.transition === "none"
-      const y = new DOMMatrix(getComputedStyle(content).transform).m42
-      const lift = dragging ? Math.max(0, content.clientHeight - base.current - y) : 0
-      if (lift > 0) {
-        fill.style.setProperty("--lift", `${lift}px`)
-        fill.dataset.lifting = ""
-      } else if ("lifting" in fill.dataset) {
-        fill.style.removeProperty("--lift")
-        delete fill.dataset.lifting
-      }
+    const pin = () => {
+      const y = new DOMMatrix(content.style.transform || "none").m42
+      const spring = content.style.transition
+      fill.style.transition = spring && spring !== "none" ? spring.replace(/\btransform\b/g, "height") : "none"
+      fill.style.setProperty("--pin", `${content.clientHeight - y}px`)
     }
-    const observer = new MutationObserver(sync)
+    // Once it rests the snap point's own height takes over (the same value), ready for the next snap or tab.
+    const settle = (event: TransitionEvent) => {
+      if (event.target !== fill || event.propertyName !== "height") return
+      fill.style.removeProperty("transition")
+      fill.style.removeProperty("--pin")
+    }
+    const observer = new MutationObserver(pin)
     observer.observe(content, { attributes: true, attributeFilter: ["style"] })
-    return () => observer.disconnect()
+    fill.addEventListener("transitionend", settle)
+    return () => {
+      observer.disconnect()
+      fill.removeEventListener("transitionend", settle)
+    }
   }, [content])
 }
 
@@ -126,7 +129,7 @@ function Phone() {
     state.gallery
   const showTabs = !fullPage && !(state.tab === "trips" && state.mode === "map" && state.snap !== PEEK)
   const snapPx = screen ? screen.clientHeight * state.snap : 318
-  useStretchOnDrag(drawer, snapPx)
+  usePinnedBottom(drawer)
   const focus: MapFocus =
     state.tab === "passport"
       ? state.stamp
@@ -268,7 +271,7 @@ function Phone() {
           <Drawer.Portal>
             <Drawer.Content ref={setDrawer} className="trip-drawer" aria-describedby={undefined} onOpenAutoFocus={(event) => event.preventDefault()}>
               <Drawer.Title className="sr">{state.tab === "friends" ? "Friends" : state.tab === "passport" ? "Passport" : state.trip === "lisbon" ? state.tripTitle : trips.find((trip) => trip.id === state.trip)?.title}</Drawer.Title>
-              <div className={drawerExpanded ? "drawer-fill open" : "drawer-fill"} style={{ height: `calc(${snapPx}px + var(--lift, 0px))` }}>
+              <div className={drawerExpanded ? "drawer-fill open" : "drawer-fill"} style={{ height: `var(--pin, ${snapPx}px)` }}>
                 <TripDrawer />
               </div>
             </Drawer.Content>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ReactNode } from "react"
 import * as maplibregl from "maplibre-gl"
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url"
 import { globePlaces, initialExpenses, passportArcs, passportStamps, people, tripNights, trips, tuesdayPoll } from "../data"
@@ -184,10 +184,13 @@ const TILT_MAX = 32
 // follows the finger, the sheen sliding with it, then springs back into the sway on release.
 function Splash() {
   const [tilt, setTilt] = useState<{ x: number; y: number; px: number; py: number } | null>(null)
-  const start = useRef<{ x: number; y: number } | null>(null)
+  // The pointer holding the stamp; a second finger doesn't take it over.
+  const start = useRef<{ id: number; x: number; y: number } | null>(null)
   const clamp = (value: number) => Math.max(-TILT_MAX, Math.min(TILT_MAX, value))
   function follow(event: ReactPointerEvent<HTMLDivElement>) {
-    if (!start.current) return
+    if (start.current?.id !== event.pointerId) return
+    // A release the stamp never heard (outside the window or the phone frame) shows up as a move with nothing pressed.
+    if (event.buttons === 0) return release()
     const box = event.currentTarget.getBoundingClientRect()
     setTilt({
       y: clamp((event.clientX - start.current.x) * 0.35),
@@ -200,6 +203,11 @@ function Splash() {
     start.current = null
     setTilt(null)
   }
+  // Losing the window mid-drag (switching apps, a dialog) never sends the release either.
+  useEffect(() => {
+    window.addEventListener("blur", release)
+    return () => window.removeEventListener("blur", release)
+  }, [])
   const sheen = tilt
     ? ({
         "--pointer-x": `${tilt.px}%`,
@@ -212,27 +220,32 @@ function Splash() {
   return (
     <>
       <img className="onb-sunrise" src="/assets/brand/icon-sunrise.svg" alt="" />
-      <div
-        className={tilt ? "onb-logo-tilt grabbed" : "onb-logo-tilt"}
-        data-onb-tilt
-        style={{ transform: tilt ? `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` : undefined }}
-        onPointerDown={(event) => {
-          event.currentTarget.setPointerCapture(event.pointerId)
-          start.current = { x: event.clientX, y: event.clientY }
-          follow(event)
-        }}
-        onPointerMove={follow}
-        onPointerUp={release}
-        onPointerCancel={release}
-      >
-        <div className="onb-logo-wrap">
-          <div className="app-icon-stamp onb-logo" style={sheen}>
-            <img className="app-icon-paper" src="/assets/brand/icon-stamp.svg" alt="" draggable={false} />
-            <img className="app-icon-art" src="/assets/brand/icon-landscape.svg" alt="" draggable={false} />
-            <b>TripUp</b>
-            <span className="stamp-holo stamp-holo-shine" aria-hidden="true" />
-            <span className="stamp-holo stamp-holo-glare" aria-hidden="true" />
-            <span className="stamp-holo stamp-holo-paper" aria-hidden="true" />
+      <div className="onb-logo-in">
+        <div
+          className={tilt ? "onb-logo-tilt grabbed" : "onb-logo-tilt"}
+          data-onb-tilt
+          style={{ transform: tilt ? `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` : undefined }}
+          onPointerDown={(event) => {
+            if (start.current) return
+            event.currentTarget.setPointerCapture(event.pointerId)
+            start.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
+            follow(event)
+          }}
+          onPointerMove={follow}
+          onPointerUp={(event) => event.pointerId === start.current?.id && release()}
+          onPointerCancel={(event) => event.pointerId === start.current?.id && release()}
+          // However the capture ends (released, cancelled, or dropped by the browser), the stamp goes back to its sway.
+          onLostPointerCapture={(event) => event.pointerId === start.current?.id && release()}
+        >
+          <div className="onb-logo-wrap">
+            <div className="app-icon-stamp onb-logo" style={sheen}>
+              <img className="app-icon-paper" src="/assets/brand/icon-stamp.svg" alt="" draggable={false} />
+              <img className="app-icon-art" src="/assets/brand/icon-landscape.svg" alt="" draggable={false} />
+              <b>TripUp</b>
+              <span className="stamp-holo stamp-holo-shine" aria-hidden="true" />
+              <span className="stamp-holo stamp-holo-glare" aria-hidden="true" />
+              <span className="stamp-holo stamp-holo-paper" aria-hidden="true" />
+            </div>
           </div>
         </div>
       </div>
@@ -532,16 +545,19 @@ function ExpensesVisual({ on }: { on: boolean }) {
 
 maplibregl.setWorkerUrl(workerUrl)
 
-// The Passport's globe telling the route as a journey: a city pops in, the line travels its arc to the next, and so on.
+// The Passport's globe telling the route as a journey, one beat per city, all timed from the line's arrival and all
+// at an even, linear speed so the journey flows without stops:
+//   0ms    the line reaches the city and its dot pops; the city's stamp deals in and the totals count up what it adds,
+//          both over DEAL_S, so the numbers move with the stamp
+//   180ms  the line leaves for the next city, reaching it ~560ms after it got here
 const REVEAL_START = 0.2
-// The Passport tab's pace at an even speed: a city every 470ms, long enough for its stamp to land (DEAL_S, the deal's
-// duration in index.css) and its totals to count before the next city comes, so the journey reads as one beat after another.
-const PACE = { pace: 1, linear: true }
-const DEAL_S = 0.45
+// The Passport tab's reveal, a fifth slower so each stop can be read (dots 180ms, lines 384ms), and linear.
+const PACE = { pace: 1.2, linear: true }
+const DEAL_S = 0.4
 const times = dotTimes(globePlaces.length, PACE)
-// Each city's stamp deals, and the totals step up, a hair after its dot starts to pop.
-const dealAt = (index: number) => REVEAL_START + times[index] / 1000 + 0.05
-const dealt = globePlaces.map((item, index) => ({ stamp: item, at: dealAt(index) }))
+// When each city's dot starts to pop, in seconds from the moment the route starts.
+const arriveAt = (index: number) => REVEAL_START + times[index] / 1000
+const dealt = globePlaces.map((item, index) => ({ stamp: item, at: arriveAt(index) }))
 
 // The Passport's totals as they stand once each city is on the globe. A trip's nights, and any of its cities the globe
 // doesn't show (Rotterdam), are counted with the trip's first city on the globe.
@@ -563,39 +579,52 @@ const tally = (() => {
 type Totals = (typeof tally)[number]
 const zero: Totals = { countries: 0, cities: 0, nights: 0 }
 
-// The totals counted on the globe's clock: each city's step counts up evenly over its stamp's deal, from the moment
-// `going` turns on. Everything shows at once when motion is reduced.
-function useTally(going: boolean) {
-  const [totals, setTotals] = useState(zero)
+const KEYS = ["countries", "cities", "nights"] as const
+const LABELS = { countries: "Countries", cities: "Cities", nights: "Nights away" }
+type Beats = Record<(typeof KEYS)[number], number>
+const still: Beats = { countries: 0, cities: 0, nights: 0 }
+
+// The totals counted on the globe's clock: each city's step counts up evenly over its stamp's deal, timed from
+// `start`, the moment the route started. `beats` counts the steps each total has taken so far, so a total can flash each time it
+// changes. Everything shows at once when motion is reduced.
+function useTally(start: number | null) {
+  const going = start !== null
+  const [state, setState] = useState({ totals: zero, beats: still })
   useEffect(() => {
     if (!going || reduceMotion()) return
     let frame = 0
-    const begin = performance.now()
     const tick = (now: number) => {
-      const elapsed = (now - begin) / 1000
-      const next = { ...zero }
+      const elapsed = (now - start!) / 1000
+      const totals = { ...zero }
+      const beats = { ...still }
       tally.forEach((step, index) => {
         const before = tally[index - 1] ?? zero
-        const t = Math.min(Math.max((elapsed - dealAt(index)) / DEAL_S, 0), 1)
-        for (const key of ["countries", "cities", "nights"] as const) next[key] += (step[key] - before[key]) * t
+        const from = arriveAt(index)
+        if (elapsed < from) return
+        const t = Math.min((elapsed - from) / DEAL_S, 1)
+        for (const key of KEYS) {
+          totals[key] += (step[key] - before[key]) * t
+          if (step[key] > before[key]) beats[key] += 1
+        }
       })
-      setTotals(next)
-      if (elapsed < dealAt(tally.length - 1) + DEAL_S) frame = requestAnimationFrame(tick)
+      setState((last) => (KEYS.every((key) => last.totals[key] === totals[key] && last.beats[key] === beats[key]) ? last : { totals, beats }))
+      if (elapsed < arriveAt(tally.length - 1) + DEAL_S) frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(frame)
-      setTotals(zero)
+      setState({ totals: zero, beats: still })
     }
-  }, [going])
-  if (!going) return zero
-  return reduceMotion() ? tally[tally.length - 1] : totals
+  }, [going, start])
+  if (!going) return { totals: zero, beats: still }
+  return reduceMotion() ? { totals: tally[tally.length - 1], beats: still } : state
 }
 const places = globePlaces.map((item) => ({ coord: item.coord }))
 const route = passportArcs.map((coordinates) => ({ coordinates }))
 
 // Mounted only once the page is near, so the launch doesn't pay for a second map; kept alive after that.
-function OnbGlobe({ on, onStart }: { on: boolean; onStart: (started: boolean) => void }) {
+// `onStart` hears the moment (performance.now()) the route starts, and null when it is cleared.
+function OnbGlobe({ on, onStart }: { on: boolean; onStart: (start: number | null) => void }) {
   const node = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const [ready, setReady] = useState(false)
@@ -652,11 +681,12 @@ function OnbGlobe({ on, onStart }: { on: boolean; onStart: (started: boolean) =>
   useEffect(() => {
     const map = mapRef.current
     if (!on || !ready || !map) return
+    const start = performance.now()
     const stop = playRoute(map.getSource("onb-passport") as maplibregl.GeoJSONSource, places, route, REVEAL_START * 1000, PACE)
-    onStart(true)
+    onStart(start)
     return () => {
       stop(true)
-      onStart(false)
+      onStart(null)
     }
   }, [on, ready, onStart])
 
@@ -665,16 +695,39 @@ function OnbGlobe({ on, onStart }: { on: boolean; onStart: (started: boolean) =>
 
 // The Passport globe lights up city by city; as each city appears its stamp deals in and the totals count up what it
 // adds; the globe fades out at the bottom into the stamps.
-function PassportVisual({ on, near }: { on: boolean; near: boolean }) {
-  // Everything below runs off the moment the globe's route starts, not the moment the page shows: the map may still be
-  // loading when the page arrives, and the stamps and totals have to move with the lines.
-  const [started, setStarted] = useState(false)
-  const going = on && started
-  const { countries, cities, nights } = useTally(going)
+// The page track's slide (0.5s in index.css): a page leaving stays as it was until it is out of view.
+const SLIDE_MS = 500
+
+// True while `on`, and for `ms` after it turns off.
+function useLinger(on: boolean, ms: number) {
+  const [gone, setGone] = useState(!on)
+  if (on && gone) setGone(false)
+  useEffect(() => {
+    if (on) return
+    const id = window.setTimeout(() => setGone(true), ms)
+    return () => window.clearTimeout(id)
+  }, [on, ms])
+  return on || !gone
+}
+
+function PassportVisual({ on: shown, near }: { on: boolean; near: boolean }) {
+  // Swiping away, the journey stays told while the page slides out, then resets out of sight to play again next time.
+  const on = useLinger(shown, SLIDE_MS)
+  // Everything below runs on the globe's clock, from the moment its route starts, not the moment the page shows or
+  // React gets round to it: the map may still be loading when the page arrives, and the stamps and totals have to move
+  // with the lines.
+  const [start, setStart] = useState<number | null>(null)
+  const going = on && start !== null
+  const { totals, beats } = useTally(going ? start : null)
+  const node = useRef<HTMLDivElement>(null)
+  // The stamps' deal delays count from the route's start, so however late the class lands they are caught up.
+  useLayoutEffect(() => {
+    if (going && start !== null) node.current?.style.setProperty("--late", `${(performance.now() - start) / 1000}s`)
+  }, [going, start])
   return (
-    <div className={going ? "onb-pass dealing" : "onb-pass"}>
+    <div ref={node} className={["onb-pass", on && "live", going && "dealing"].filter(Boolean).join(" ")}>
       <div className="onb-globe-wrap" aria-hidden="true">
-        {near && <OnbGlobe on={on} onStart={setStarted} />}
+        {near && <OnbGlobe on={on} onStart={setStart} />}
       </div>
       <div className="onb-fan">
         {dealt.map(({ stamp: item, at }, index) => (
@@ -684,18 +737,14 @@ function PassportVisual({ on, near }: { on: boolean; near: boolean }) {
         ))}
       </div>
       <dl className="pass-numbers">
-        <div>
-          <dd>{Math.round(countries)}</dd>
-          <dt>Countries</dt>
-        </div>
-        <div>
-          <dd>{Math.round(cities)}</dd>
-          <dt>Cities</dt>
-        </div>
-        <div>
-          <dd>{Math.round(nights)}</dd>
-          <dt>Nights away</dt>
-        </div>
+        {KEYS.map((key) => (
+          <div key={key}>
+            <dd key={beats[key]} className={beats[key] ? "onb-bump" : undefined}>
+              {Math.round(totals[key])}
+            </dd>
+            <dt>{LABELS[key]}</dt>
+          </div>
+        ))}
       </dl>
     </div>
   )

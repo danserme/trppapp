@@ -56,12 +56,14 @@ function SheetFrame({ hug = false, view, above, children }: { hug?: boolean; vie
   }, [hug, view])
   return (
     <>
+      {/* Over a full sheet it rides the drawer's top; over a hugging one it sits on the content's measured top. */}
       {above && height !== undefined && (
-        <div className="sheet-above" style={{ bottom: height + 8 }} data-vaul-no-drag>
+        <div className={hug ? "sheet-above hug" : "sheet-above"} style={{ bottom: hug ? height + 8 : "100%" }} data-vaul-no-drag>
           {above}
         </div>
       )}
-      <div ref={ref} className={hug ? "sheet-frame hug" : "sheet-frame"} style={{ height }}>
+      {/* A full sheet takes its height from the drawer in CSS, so it moves in the same frame as the drawer does. */}
+      <div ref={ref} className={hug ? "sheet-frame hug" : "sheet-frame"} style={hug ? { height } : undefined}>
         {children}
       </div>
     </>
