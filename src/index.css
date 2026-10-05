@@ -2852,46 +2852,28 @@ button.meta-pill:active { transform: scale(0.96); }
 .onb-splash .onb-copy p { font-size: 17px; color: rgb(255 255 255 / 0.85); }
 .onb-sunrise { position: absolute; left: -328px; top: -524px; width: 820px; height: 820px; max-width: none; opacity: 0.9; pointer-events: none; }
 .onb-logo-in {
-  /* The entrance lives out here and the 3D scene starts inside (the perspective is for this box's children): an
-     element under a running transform animation is flattened by Chrome, so with the entrance on the tilt layer the
-     stamp's perspective switched on only as the entrance ended, and the turned stamp jumped. */
+  /* The stage, like the Passport's .stamp-3d: the perspective for the one card inside, and the place to grab it. The
+     entrance plays out here too; the 3D scene is only the card, so the entrance never flattens it. */
   perspective: 1000px;
+  cursor: grab;
+  touch-action: none;
   animation: onb-stamp-in 0.9s cubic-bezier(0.2, 0.9, 0.3, 1.15) backwards;
   /* Kept as its own layer after the entrance too, so it isn't repainted when the entrance ends (a sub-pixel snap). */
   will-change: transform;
 }
-/* Outer layer: the finger's tilt. Inner layer: the idle sway. They multiply, so a grab never jumps. */
-.onb-logo-tilt {
-  transform-style: preserve-3d;
-  cursor: grab;
-  touch-action: none;
-  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.onb-logo-tilt.grabbed { cursor: grabbing; transition: transform 0.08s linear; }
-/* The app icon's stamp at 5× its icon size. Laid out at full size rather than with `zoom`, which Safari rasterizes at
-   the unzoomed size and scales up, pixelating the stamp. Safari also paints a 3D-turned layer once at its layout size
-   and resamples it as it turns, softening the edges, so it is laid out at 10× and drawn at half scale: the layer has
-   twice the pixels it shows. The negative margins give back the extra layout size. The scale halves depth too, or the
-   turning stamp would reach twice as far towards the viewer and its perspective would warp. */
-.onb-logo-wrap {
-  --z: 10;
-  scale: 0.5 0.5 0.5;
-  margin: calc(71.47px * var(--z) / -4) calc(57.5px * var(--z) / -4);
-  transform-style: preserve-3d;
-}
+.onb-logo-in.grabbed { cursor: grabbing; }
+/* The card, like the Passport's .stamp-card: the app icon's stamp drawn at 5× its icon size, at that real size (no
+   `zoom`, which Safari rasterises small and scales up). Splash() sets its transform (sway × finger) and its sheen
+   variables each frame; its layers stay flat on it and render as one. */
 .app-icon-stamp.onb-logo {
+  --z: 5;
   position: relative;
   left: auto;
   top: auto;
   width: calc(57.5px * var(--z));
   height: calc(71.47px * var(--z));
-  transform-style: preserve-3d;
-  /* The sway holds its first pose through the entrance (backwards), so the stamp rises already turned into it and the
-     sway picks up from there, rather than lying flat and snapping round when it starts. */
-  animation: onb-sway 7s ease-in-out 0.9s infinite backwards, onb-sheen 7s ease-in-out 0.9s infinite backwards;
+  transform-style: flat;
 }
-/* While held, the sway freezes where it is and the sheen follows the finger (inline variables) instead of the clock. */
-.onb-logo-tilt.grabbed .onb-logo { animation: onb-sway 7s ease-in-out 0.9s infinite backwards; animation-play-state: paused; }
 .onb-logo > .app-icon-paper,
 .onb-logo > .stamp-holo {
   left: calc(-3.97px * var(--z));
@@ -2906,15 +2888,6 @@ button.meta-pill:active { transform: scale(0.96); }
   pointer-events: none;
   -webkit-mask: url(/assets/brand/icon-stamp-mask.svg) 0 0 / 100% 100% no-repeat;
   mask: url(/assets/brand/icon-stamp-mask.svg) 0 0 / 100% 100% no-repeat;
-}
-@keyframes onb-sway {
-  0%, 100% { transform: rotateY(-16deg) rotateX(6deg) rotate(-6deg); }
-  50% { transform: rotateY(16deg) rotateX(-5deg) rotate(-2deg); }
-}
-/* The same variables StampStage drives with the pointer; here the sway drives them. */
-@keyframes onb-sheen {
-  0%, 100% { --pointer-x: 18%; --pointer-y: 22%; --background-x: 42%; --background-y: 40%; --card-opacity: 0.9; }
-  50% { --pointer-x: 82%; --pointer-y: 70%; --background-x: 58%; --background-y: 58%; --card-opacity: 0.9; }
 }
 @keyframes onb-stamp-in { from { opacity: 0; transform: translateY(24px) scale(0.8); } }
 
@@ -3112,11 +3085,10 @@ button.meta-pill:active { transform: scale(0.96); }
 .onb-pass .pass-numbers dd { font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) {
-  .onb-track, .onb-dots button, .onb-pile-card, .onb-logo-tilt { transition-duration: 0s; }
+  .onb-track, .onb-dots button, .onb-pile-card { transition-duration: 0s; }
   .onb-pile-card[data-depth="0"] { animation: onb-fade-in 0.2s ease; }
   .onb-bump { animation: none; }
-  .onb-logo, .onb-logo-in, .onb-page.on .onb-copy > *, .onb-pass.dealing .onb-fan-stamp, .onb-pile-card, .onb-trips.on .onb-map-bg { animation: none; }
-  .onb-logo { transform: rotateY(-8deg) rotateX(3deg) rotate(-6deg); --card-opacity: 0.6; }
+  .onb-logo-in, .onb-page.on .onb-copy > *, .onb-pass.dealing .onb-fan-stamp, .onb-pile-card, .onb-trips.on .onb-map-bg { animation: none; }
   .onb-trips.on :is(.onb-route-past, .onb-route-reveal) { animation: none; stroke-dashoffset: 0; }
   .onb-trips.on :is(.onb-route-future, .onb-stop, .onb-here-pin, .onb-here-halo, .onb-sheet, .onb-rise, .onb-step, .voters, .now-tag, .faces > *),
   .onb-pass.live .onb-globe-wrap,

@@ -129,7 +129,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         Skip
       </button>
       <div className={dx ? "onb-track dragging" : "onb-track"} style={{ transform: `translateX(calc(${-page * 100}% + ${dx}px))` }}>
-        <Page on={page === 0} kind="splash" visual={<Splash />} title={"Plan the trip.\nShare the moments."} body="Your trips, your friends and every memory, in one place." />
+        <Page on={page === 0} kind="splash" visual={<Splash on={page === 0} />} title={"Plan the trip.\nShare the moments."} body="Your trips, your friends and every memory, in one place." />
         <Page
           on={page === 1}
           kind="trips"
@@ -180,73 +180,110 @@ function Page({ on, kind, visual, title, body }: { on: boolean; kind: string; vi
 
 const TILT_MAX = 32
 
-// The app icon's stamp, huge, under the same laminate as the passport stamps. It sways on its own; grab it and it
-// follows the finger, the sheen sliding with it, then springs back into the sway on release.
-function Splash() {
-  const [tilt, setTilt] = useState<{ x: number; y: number; px: number; py: number } | null>(null)
-  // The pointer holding the stamp; a second finger doesn't take it over.
+// The idle sway, as the two poses it rocks between every 7s (after the 0.9s entrance), and the sheen that rides with it.
+const SWAY = { delay: 0.9, period: 7 }
+const POSE_A = { ry: -16, rx: 6, rz: -6, px: 18, py: 22, bx: 42, by: 40 }
+const POSE_B = { ry: 16, rx: -5, rz: -2, px: 82, py: 70, bx: 58, by: 58 }
+const POSE_STILL = { ry: -8, rx: 3, rz: -6, px: 30, py: 30, bx: 45, by: 44 }
+type Pose = typeof POSE_A
+const mixPose = (a: Pose, b: Pose, t: number) => Object.fromEntries(Object.keys(a).map((key) => [key, a[key as keyof Pose] + (b[key as keyof Pose] - a[key as keyof Pose]) * t])) as Pose
+
+// The app icon's stamp, huge, under the same laminate as the passport stamps. Built like the Passport's StampStage: a
+// perspective stage and one card, the only thing turned in 3D, at its real size. It sways on its own; grab it and it
+// follows the finger, the sheen sliding with it, then eases back into the sway on release. Sway, tilt and sheen are
+// blended here each frame into the card's one transform and its sheen variables, so nothing in CSS competes with them.
+function Splash({ on }: { on: boolean }) {
+  const card = useRef<HTMLDivElement>(null)
+  // The pointer holding the stamp (a second finger doesn't take it over), and where the finger wants it.
   const start = useRef<{ id: number; x: number; y: number } | null>(null)
+  const hold = useRef<{ x: number; y: number; px: number; py: number } | null>(null)
+  const [held, setHeld] = useState(false)
   const clamp = (value: number) => Math.max(-TILT_MAX, Math.min(TILT_MAX, value))
   function follow(event: ReactPointerEvent<HTMLDivElement>) {
     if (start.current?.id !== event.pointerId) return
     // A release the stamp never heard (outside the window or the phone frame) shows up as a move with nothing pressed.
     if (event.buttons === 0) return release()
     const box = event.currentTarget.getBoundingClientRect()
-    setTilt({
+    hold.current = {
       y: clamp((event.clientX - start.current.x) * 0.35),
       x: clamp(-(event.clientY - start.current.y) * 0.35),
       px: Math.min(100, Math.max(0, ((event.clientX - box.left) / box.width) * 100)),
       py: Math.min(100, Math.max(0, ((event.clientY - box.top) / box.height) * 100)),
-    })
+    }
   }
   function release() {
     start.current = null
-    setTilt(null)
+    hold.current = null
+    setHeld(false)
   }
   // Losing the window mid-drag (switching apps, a dialog) never sends the release either.
   useEffect(() => {
     window.addEventListener("blur", release)
     return () => window.removeEventListener("blur", release)
   }, [])
-  const sheen = tilt
-    ? ({
-        "--pointer-x": `${tilt.px}%`,
-        "--pointer-y": `${tilt.py}%`,
-        "--background-x": `${37 + tilt.px * 0.26}%`,
-        "--background-y": `${33 + tilt.py * 0.34}%`,
-        "--card-opacity": 1,
-      } as CSSProperties)
-    : undefined
+
+  useEffect(() => {
+    const el = card.current
+    if (!el || !on) return
+    const still = reduceMotion()
+    let frame = 0
+    let last = performance.now()
+    let sway = 0 // seconds of sway played; it stands still while the stamp is held
+    const tilt = { x: 0, y: 0 }
+    let grip = 0 // 0 = the sway's sheen, 1 = the finger's
+    const tick = (now: number) => {
+      const dt = Math.min((now - last) / 1000, 0.1)
+      last = now
+      const target = hold.current
+      if (!target) sway += dt
+      // Ease towards the target: close behind the finger while held, a soft ~0.7s settle once let go.
+      const ease = (tau: number) => (still ? 1 : 1 - Math.exp(-dt / tau))
+      const k = ease(target ? 0.03 : 0.16)
+      tilt.x += ((target?.x ?? 0) - tilt.x) * k
+      tilt.y += ((target?.y ?? 0) - tilt.y) * k
+      grip += ((target ? 1 : 0) - grip) * ease(target ? 0.05 : 0.15)
+      const phase = Math.max(0, sway - SWAY.delay) / SWAY.period
+      const pose = still ? POSE_STILL : mixPose(POSE_A, POSE_B, 0.5 - 0.5 * Math.cos(phase * 2 * Math.PI))
+      const px = pose.px + ((target?.px ?? pose.px) - pose.px) * grip
+      const py = pose.py + ((target?.py ?? pose.py) - pose.py) * grip
+      el.style.transform = `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) rotateY(${pose.ry}deg) rotateX(${pose.rx}deg) rotate(${pose.rz}deg)`
+      el.style.setProperty("--pointer-x", `${px}%`)
+      el.style.setProperty("--pointer-y", `${py}%`)
+      el.style.setProperty("--background-x", `${pose.bx + (37 + px * 0.26 - pose.bx) * grip}%`)
+      el.style.setProperty("--background-y", `${pose.by + (33 + py * 0.34 - pose.by) * grip}%`)
+      el.style.setProperty("--card-opacity", String((still ? 0.6 : 0.9) + 0.1 * grip))
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [on])
+
   return (
     <>
       <img className="onb-sunrise" src="/assets/brand/icon-sunrise.svg" alt="" />
-      <div className="onb-logo-in">
-        <div
-          className={tilt ? "onb-logo-tilt grabbed" : "onb-logo-tilt"}
-          data-onb-tilt
-          style={{ transform: tilt ? `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` : undefined }}
-          onPointerDown={(event) => {
-            if (start.current) return
-            event.currentTarget.setPointerCapture(event.pointerId)
-            start.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
-            follow(event)
-          }}
-          onPointerMove={follow}
-          onPointerUp={(event) => event.pointerId === start.current?.id && release()}
-          onPointerCancel={(event) => event.pointerId === start.current?.id && release()}
-          // However the capture ends (released, cancelled, or dropped by the browser), the stamp goes back to its sway.
-          onLostPointerCapture={(event) => event.pointerId === start.current?.id && release()}
-        >
-          <div className="onb-logo-wrap">
-            <div className="app-icon-stamp onb-logo" style={sheen}>
-              <img className="app-icon-paper" src="/assets/brand/icon-stamp.svg" alt="" draggable={false} />
-              <img className="app-icon-art" src="/assets/brand/icon-landscape.svg" alt="" draggable={false} />
-              <b>TripUp</b>
-              <span className="stamp-holo stamp-holo-shine" aria-hidden="true" />
-              <span className="stamp-holo stamp-holo-glare" aria-hidden="true" />
-              <span className="stamp-holo stamp-holo-paper" aria-hidden="true" />
-            </div>
-          </div>
+      <div
+        className={held ? "onb-logo-in grabbed" : "onb-logo-in"}
+        data-onb-tilt
+        onPointerDown={(event) => {
+          if (start.current) return
+          event.currentTarget.setPointerCapture(event.pointerId)
+          start.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
+          setHeld(true)
+          follow(event)
+        }}
+        onPointerMove={follow}
+        onPointerUp={(event) => event.pointerId === start.current?.id && release()}
+        onPointerCancel={(event) => event.pointerId === start.current?.id && release()}
+        // However the capture ends (released, cancelled, or dropped by the browser), the stamp goes back to its sway.
+        onLostPointerCapture={(event) => event.pointerId === start.current?.id && release()}
+      >
+        <div ref={card} className="app-icon-stamp onb-logo">
+          <img className="app-icon-paper" src="/assets/brand/icon-stamp.svg" alt="" draggable={false} />
+          <img className="app-icon-art" src="/assets/brand/icon-landscape.svg" alt="" draggable={false} />
+          <b>TripUp</b>
+          <span className="stamp-holo stamp-holo-shine" aria-hidden="true" />
+          <span className="stamp-holo stamp-holo-glare" aria-hidden="true" />
+          <span className="stamp-holo stamp-holo-paper" aria-hidden="true" />
         </div>
       </div>
     </>

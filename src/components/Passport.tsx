@@ -167,7 +167,7 @@ export function PassportPanel() {
             </button>
           ))}
           {showTokyo && (
-            <button type="button" className="future-stamp" aria-label="Tokyo stamp, pending" onClick={() => dispatch({ type: "toast", toast: "Your Tokyo stamp reveals when the trip ends." })}>
+            <button type="button" className="future-stamp" aria-label="Tokyo stamp, pending" onClick={() => dispatch({ type: "toast", toast: "Add photos to your trip to create its stamp." })}>
               <strong>Tokyo</strong>
               <span>pending</span>
               <span>{tokyoDays[0].label}</span>
