@@ -379,7 +379,8 @@ export function PollComposer() {
       return
     }
     const poll: Poll = {
-      question: question.trim() || (voting ? "Where should we go?" : chosen[0].name),
+      // A picked place is titled by its name; only a poll has a question.
+      question: voting ? question.trim() || "Where should we go?" : chosen[0].name,
       from,
       to,
       date,
@@ -414,25 +415,49 @@ export function PollComposer() {
               <i className="icon-mask poll-icon" aria-hidden="true" /> Open poll
             </button>
           </div>
-          <label className="question-field">
-            <input
-              className="question"
-              aria-label={voting ? "Question" : "Title"}
-              value={question}
-              enterKeyHint="done"
-              placeholder={voting ? "What should we eat for dinner?" : "Give it a title"}
-              onFocus={(event) => event.currentTarget.select()}
-              onChange={(event) => setQuestion(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur()
-              }}
-            />
-            {question && (
-              <button type="button" className="clear" aria-label="Clear question" onClick={() => setQuestion("")}>
-                <IconClose />
-              </button>
-            )}
-          </label>
+          {/* A poll asks its question here; a picked place needs no title (the place names the stop), so its place goes
+              here instead. */}
+          {voting ? (
+            <label className="question-field">
+              <input
+                className="question"
+                aria-label="Question"
+                value={question}
+                enterKeyHint="done"
+                placeholder="What should we eat for dinner?"
+                onFocus={(event) => event.currentTarget.select()}
+                onChange={(event) => setQuestion(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur()
+                }}
+              />
+              {question && (
+                <button type="button" className="clear" aria-label="Clear question" onClick={() => setQuestion("")}>
+                  <IconClose />
+                </button>
+              )}
+            </label>
+          ) : (
+            <label className="question-field place-field">
+              <IconPlace />
+              <input
+                className="question"
+                aria-label="Place"
+                value={place}
+                enterKeyHint="done"
+                placeholder="Paste a link, address or name"
+                onChange={(event) => setPlace(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur()
+                }}
+              />
+              {place && (
+                <button type="button" className="clear" aria-label="Clear place" onClick={() => setPlace("")}>
+                  <IconClose />
+                </button>
+              )}
+            </label>
+          )}
           <div className="when-box">
             <div className="when-days" role="radiogroup" aria-label="Day">
               {tripDays(state.trip).map((day) => (
@@ -462,14 +487,14 @@ export function PollComposer() {
             <ActivityPicker value={status} onChange={setStatus} />
           </div>
         </div>
-        <section className="form-section">
-          <div className="form-label">
-            <span>{voting ? `Options${options.length ? ` · ${options.length}` : ""}` : "Where"}</span>
-          </div>
-          <div className="option-box">
-            <label className="option-entry">
-              <IconPlace />
-              {voting ? (
+        {voting && (
+          <section className="form-section">
+            <div className="form-label">
+              <span>Options{options.length ? ` · ${options.length}` : ""}</span>
+            </div>
+            <div className="option-box">
+              <label className="option-entry">
+                <IconPlace />
                 <input
                   value={draft}
                   placeholder="Paste a link, address or name"
@@ -479,22 +504,13 @@ export function PollComposer() {
                     if (event.key === "Enter") addDraft()
                   }}
                 />
-              ) : (
-                <input value={place} placeholder="Paste a link, address or name" onChange={(event) => setPlace(event.target.value)} />
-              )}
-              {((voting && draft) || (!voting && place)) && (
-                <button
-                  type="button"
-                  className="clear"
-                  aria-label={voting ? "Clear option" : "Clear place"}
-                  onClick={() => (voting ? setDraft("") : setPlace(""))}
-                >
-                  <IconClose />
-                </button>
-              )}
-            </label>
-            {voting &&
-              options.map((option) => {
+                {draft && (
+                  <button type="button" className="clear" aria-label="Clear option" onClick={() => setDraft("")}>
+                    <IconClose />
+                  </button>
+                )}
+              </label>
+              {options.map((option) => {
                 const photo = savedPlaces.find((item) => item.id === option.id)?.photo
                 return (
                   <div key={option.id} className="option-added">
@@ -510,8 +526,9 @@ export function PollComposer() {
                   </div>
                 )
               })}
-          </div>
-        </section>
+            </div>
+          </section>
+        )}
         <section className="form-section saved-section">
           <div className="form-label">
             <span>Your saved places</span>
