@@ -170,7 +170,7 @@ export function FriendsPanel() {
 // The invite QR in the brand style (Figma 91:4412): rounded modules that merge along runs, rounded corner markers with
 // a round eye, and the TripUp wordmark laid over the code with a white outline round each letter. The outline hides
 // only the modules right at the letters, so error correction H (30%) carries it at the frame's full size.
-const STROKE = 1.4
+const STROKE = 2.4
 
 function BrandQR({ value }: { value: string }) {
   const { modules } = QRCode.create(value, { errorCorrectionLevel: "H" })
