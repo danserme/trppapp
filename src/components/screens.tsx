@@ -167,14 +167,58 @@ export function FriendsPanel() {
   )
 }
 
+// The invite QR in the brand style (Figma 91:4412): rounded modules that merge along runs, rounded corner markers with
+// a round eye, and the TripUp wordmark laid over the code with a white outline round each letter. The outline hides
+// only the modules right at the letters, so error correction H (30%) carries it at the frame's full size.
+const STROKE = 1.4
+
+function BrandQR({ value }: { value: string }) {
+  const { modules } = QRCode.create(value, { errorCorrectionLevel: "H" })
+  const n = modules.size
+  const quiet = 1
+  const font = (34.8 / 150) * (n + quiet * 2)
+  const finder = (r: number, c: number) => (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7)
+  const on = (r: number, c: number) => r >= 0 && c >= 0 && r < n && c < n && modules.get(r, c) === 1 && !finder(r, c)
+  let d = ""
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (!on(r, c)) continue
+      const up = on(r - 1, c)
+      const down = on(r + 1, c)
+      const left = on(r, c - 1)
+      const right = on(r, c + 1)
+      // A corner is rounded only where neither of its two sides touches another module, so runs read as one stroke.
+      const k = (round: boolean) => (round ? 0.5 : 0)
+      const [tl, tr, br, bl] = [k(!up && !left), k(!up && !right), k(!down && !right), k(!down && !left)]
+      d += `M${c + tl} ${r}H${c + 1 - tr}${tr ? `a.5 .5 0 0 1 .5 .5` : ""}V${r + 1 - br}${br ? `a.5 .5 0 0 1 -.5 .5` : ""}H${c + bl}${bl ? `a.5 .5 0 0 1 -.5 -.5` : ""}V${r + tl}${tl ? `a.5 .5 0 0 1 .5 -.5` : ""}Z`
+    }
+  }
+  const eyes = [
+    [0, 0],
+    [0, n - 7],
+    [n - 7, 0],
+  ]
+  return (
+    <svg viewBox={`${-quiet} ${-quiet} ${n + quiet * 2} ${n + quiet * 2}`} role="img" aria-label="Invite QR code">
+      <path d={d} fill="#111" />
+      {eyes.map(([r, c]) => (
+        <g key={`${r}-${c}`} fill="#111">
+          <path
+            fillRule="evenodd"
+            d={`M${c + 2.5} ${r}h2a2.5 2.5 0 0 1 2.5 2.5v2a2.5 2.5 0 0 1 -2.5 2.5h-2a2.5 2.5 0 0 1 -2.5 -2.5v-2a2.5 2.5 0 0 1 2.5 -2.5zM${c + 2.5} ${r + 1}a1.5 1.5 0 0 0 -1.5 1.5v2a1.5 1.5 0 0 0 1.5 1.5h2a1.5 1.5 0 0 0 1.5 -1.5v-2a1.5 1.5 0 0 0 -1.5 -1.5z`}
+          />
+          <circle cx={c + 3.5} cy={r + 3.5} r={1.5} />
+        </g>
+      ))}
+      <text x={n / 2} y={n / 2} textAnchor="middle" dominantBaseline="central" fill="#2b59f0" stroke="#fff" strokeWidth={STROKE} strokeLinejoin="round" paintOrder="stroke" fontFamily="Manrope, sans-serif" fontWeight={800} fontSize={font} letterSpacing={(1.196 / 150) * (n + quiet * 2)}>
+        TripUp
+      </text>
+    </svg>
+  )
+}
+
 export function InviteScreen() {
   const { state, dispatch } = useStore()
-  const [svg, setSvg] = useState("")
-  useEffect(() => {
-    QRCode.toString(inviteLink, { type: "svg", margin: 0, color: { dark: "#111111", light: "#00000000" } }).then((value) => {
-      setSvg(value.replace(/fill="#00000000"/g, 'fill="none"').replace(/fill="#ffffff"/gi, 'fill="none"'))
-    })
-  }, [])
   const query = state.friendQuery.trim().toLowerCase()
   const list = friends.filter((id) => person(id)?.name.toLowerCase().includes(query))
   const picked = state.selectedFriends.filter((id) => !state.members.includes(id)).length
@@ -207,7 +251,9 @@ export function InviteScreen() {
       </label>
       <div className="invite-hero">
         <div className="qr-card">
-          <div className="qr" dangerouslySetInnerHTML={{ __html: svg }} />
+          <div className="qr">
+            <BrandQR value={inviteLink} />
+          </div>
           <button type="button" className={copied ? "link-copy copied" : "link-copy"} aria-label={copied ? "Link copied" : "Copy invite link"} onClick={copy}>
             {inviteLink.replace("https://", "").replace("lisbon-hd", "...hd")}
             <span className="link-copy-icon" aria-hidden="true">

@@ -2803,7 +2803,7 @@ button.meta-pill:active { transform: scale(0.96); }
  *   map    0.0s  settles in · 0.2s the walked route draws, each stop appearing as the line reaches it
  *          1.0s  you land at its end, the halo opens · 1.25s what's still ahead unrolls, then its stops
  *   sheet  1.7s  the drawer rises · 1.9s today's card, its faces, then its "now" tag (the spot you just landed on)
- *          2.15s the poll arrives unanswered · 3.05s the first option is tapped and ticked · 3.45s the results, bars filling
+ *          2.15s the poll arrives unanswered · 3.5s the first option is tapped and ticked · 3.9s the results, bars filling
  */
 .onb-trip { position: relative; width: 340px; }
 .onb-map {

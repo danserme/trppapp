@@ -223,8 +223,9 @@ const pollOptions = tuesdayPoll.options.slice(0, 2)
 
 // The poll is played as a vote: it arrives unanswered, the first option is tapped and ticked, then it turns into the
 // results with the bars filling. Seconds from the page arriving.
-const POLL_TAP = 3.05
-const POLL_RESULTS = 3.45
+// The options are in by about 2.9s; the tap waits a beat so the unanswered poll can be read first.
+const POLL_TAP = 3.5
+const POLL_RESULTS = 3.9
 
 function usePollPhase(on: boolean) {
   const [phase, setPhase] = useState<"ask" | "tap" | "voted">("ask")
