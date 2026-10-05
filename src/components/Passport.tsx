@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react"
 import { inYear, passportStamps, photosForStamp, stampYear, tokyoDays, trips, tripYear, type Stamp } from "../data"
-import { person, useStore } from "../state"
+import { PASS, TALL, person, useStore } from "../state"
 import { BackButton } from "./chrome"
 
 const stampPhotos: Record<string, string> = Object.fromEntries(["amsterdam", "munich", "porto", "paris", "lisbon"].map((id) => [id, `/assets/passport/stamps/${id}.jpg`]))
@@ -68,6 +68,10 @@ export function StampArt({ stamp, photo, className = "", style }: { stamp: Stamp
           <span className="stamp-name" ref={nameRef}>{title}</span>
           <em>{stamp.date}</em>
         </span>
+        {/* The laminate goes on last so it coats the title too, like a real sealed sheet. */}
+        {big && <span className="stamp-holo stamp-holo-shine" aria-hidden="true" />}
+        {big && <span className="stamp-holo stamp-holo-glare" aria-hidden="true" />}
+        {big && <span className="stamp-holo stamp-holo-paper" aria-hidden="true" />}
       </span>
     </span>
   )
@@ -78,7 +82,8 @@ const tripNights: Record<string, number> = { amsterdam: 2, munich: 9, porto: 4, 
 
 export function PassportPanel() {
   const { state, dispatch } = useStore()
-  const [all, setAll] = useState(false)
+  // Pulling the drawer all the way up lays every stamp out; Expand and Collapse just move the drawer there and back.
+  const all = state.snap === TALL
   const stamps = passportStamps.filter((stamp) => inYear(stampYear(stamp), state.year))
   const covers = tripCovers.filter((stamp) => inYear(stampYear(stamp), state.year))
   const nights = trips.filter((trip) => inYear(tripYear(trip), state.year)).reduce((sum, trip) => sum + (tripNights[trip.id] ?? 0), 0)
@@ -108,7 +113,7 @@ export function PassportPanel() {
           <i />
         </div>
       </div>
-      <div className="pass-body">
+      <div className="pass-body" data-vaul-no-drag>
         <dl className="pass-numbers">
           <div>
             <dd>{new Set(stamps.map((stamp) => stamp.country)).size}</dd>
@@ -144,7 +149,7 @@ export function PassportPanel() {
         </div>
         <div className="stamps-head">
           <h2>Stamps created</h2>
-          <button type="button" onClick={() => setAll((open) => !open)}>
+          <button type="button" onClick={() => dispatch({ type: "snap", snap: all ? PASS : TALL })}>
             {all ? "Collapse" : "Expand"}
           </button>
         </div>
@@ -189,6 +194,25 @@ function StampStage({ stamp }: { stamp: Stamp }) {
   const nameRef = useFitLine<HTMLElement>(title, true)
   const [turn, setTurn] = useState({ y: 0, x: 0 })
   const [dragging, setDragging] = useState(false)
+  const card = useRef<HTMLDivElement>(null)
+  const [holo, setHolo] = useState<CSSProperties>({})
+
+  // The foil reads the pointer the way cards-css does: where it sits on the card drives the glare and the
+  // rainbow's parallax, and the foil only shows while the pointer is over (or dragging) the stamp.
+  function light(event: PointerEvent<HTMLDivElement>) {
+    const box = card.current?.getBoundingClientRect()
+    if (!box?.width) return
+    const x = Math.min(100, Math.max(0, ((event.clientX - box.left) / box.width) * 100))
+    const y = Math.min(100, Math.max(0, ((event.clientY - box.top) / box.height) * 100))
+    setHolo({
+      "--pointer-x": `${x}%`,
+      "--pointer-y": `${y}%`,
+      "--background-x": `${37 + x * 0.26}%`,
+      "--background-y": `${33 + y * 0.34}%`,
+      "--pointer-from-center": Math.min(1, Math.hypot(x - 50, y - 50) / 50),
+      "--card-opacity": 1,
+    } as CSSProperties)
+  }
   const drag = useRef<{ x: number; y: number; from: number; lastX: number; lastT: number; speed: number; moved: boolean } | null>(null)
   function settle(target: number) {
     setTurn({ y: target, x: 0 })
@@ -201,6 +225,7 @@ function StampStage({ stamp }: { stamp: Stamp }) {
   }
 
   function move(event: PointerEvent<HTMLDivElement>) {
+    light(event)
     const start = drag.current
     if (!start) return
     const dx = event.clientX - start.x
@@ -226,7 +251,7 @@ function StampStage({ stamp }: { stamp: Stamp }) {
     settle(Math.round((turn.y + fling) / FLIP) * FLIP)
   }
 
-  const style = { transform: `rotateX(${turn.x}deg) rotateY(${turn.y}deg) rotate(${stamp.tilt}deg)` }
+  const style = { ...holo, transform: `rotateX(${turn.x}deg) rotateY(${turn.y}deg) rotate(${stamp.tilt}deg)` }
   return (
     <div className="stamp-stage" role="dialog" aria-label={`${stamp.city} stamp`}>
       <header className="stamp-stage-head">
@@ -239,8 +264,18 @@ function StampStage({ stamp }: { stamp: Stamp }) {
         </span>
         <span />
       </header>
-      <div className="stamp-3d" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
-        <div className={dragging ? "stamp-card dragging" : "stamp-card"} style={style}>
+      <div
+        className="stamp-3d"
+        onPointerDown={(event) => {
+          light(event)
+          down(event)
+        }}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={up}
+        onPointerLeave={() => !drag.current && setHolo((current) => ({ ...current, "--card-opacity": 0 }) as CSSProperties)}
+      >
+        <div ref={card} className={dragging ? "stamp-card dragging" : "stamp-card"} style={style}>
           <StampArt stamp={stamp} className="stamp-face" />
           <div className="stamp-back">
             <span className="stamp-body">

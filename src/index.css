@@ -65,7 +65,10 @@ html[data-mode="app"] #root {
   position: relative;
   width: 402px;
   height: 874px;
+  /* clip, not hidden: the drawer's white underlay hangs below the screen, and a drag on the sheet would otherwise
+     autoscroll this box, lifting the map and the sheet's bottom edge off the screen before release. */
   overflow: hidden;
+  overflow: clip;
   background: #e7eef6;
 }
 
@@ -81,14 +84,14 @@ html[data-mode="app"] #root {
 .map { position: absolute; inset: 0; width: 100%; height: 100%; }
 .map canvas { outline: none; }
 .stop-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 0 0 2px #abb2bf;
+  box-shadow: 0 0 0 3.5px #2b59f0;
   cursor: pointer;
 }
-.stop-dot.past { width: 12px; height: 12px; background: #2b59f0; box-shadow: 0 0 0 2px #fff; }
+.stop-dot.past { width: 11.3px; height: 11.3px; background: #2b59f0; box-shadow: 0 0 0 3px #fff; }
 .stop-dot:not(.past):not(.focus) { visibility: hidden; pointer-events: none; }
 .stop-dot::before { content: ""; position: absolute; inset: -10px; border-radius: 50%; }
 .stop-dot { transition: width 0.25s ease, height 0.25s ease, box-shadow 0.25s ease; }
@@ -99,15 +102,15 @@ html[data-mode="app"] #root {
   box-shadow: 0 0 0 3px #fff, 0 0 0 9px rgba(43, 89, 240, 0.2);
 }
 .stop-dot.focus:not(.past) {
-  width: 8px;
-  height: 8px;
+  width: 12.5px;
+  height: 12.5px;
   background: #fff;
-  box-shadow: 0 0 0 2px #abb2bf;
+  box-shadow: 0 0 0 3.5px #2b59f0, 0 0 0 8.75px rgba(43, 89, 240, 0.15);
 }
 .here-pin {
   position: relative;
-  width: 46px;
-  height: 46px;
+  width: 57px;
+  height: 57px;
   border-radius: 50%;
   background: rgba(43, 89, 240, 0.2);
   display: grid;
@@ -141,18 +144,19 @@ html[data-mode="app"] #root {
   .here-pin::before { animation: none; opacity: 0; }
 }
 .here-pin i {
-  width: 19px;
-  height: 19px;
+  width: 24.7px;
+  height: 24.7px;
   border-radius: 50%;
   background: #fff;
   border: 1px solid #2b59f0;
+  box-shadow: 0 2px 6px rgba(14, 26, 54, 0.22);
   display: grid;
   place-items: center;
 }
 .here-pin i::after {
   content: "";
-  width: 10px;
-  height: 10px;
+  width: 12.4px;
+  height: 12.4px;
   border-radius: 50%;
   background: #2b59f0;
 }
@@ -454,6 +458,7 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   justify-content: flex-end;
 }
 .drawer-fill.open > .sheet-frame { pointer-events: auto; }
+.drawer-fill[data-lifting] .sheet-frame, .drawer-fill[data-lifting] .sheet-above { transition: none; }
 .sheet-frame {
   flex: none;
   height: calc(100% - 8px);
@@ -464,8 +469,6 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   overflow: hidden;
   transition: height 0.42s cubic-bezier(0.32, 0.72, 0, 1);
 }
-.sheet-frame:has(.passport-panel) { overflow: visible; height: auto !important; }
-.sheet-frame:has(.passport-panel) > .sheet { height: auto !important; background: transparent; }
 .sheet-frame > .sheet { height: 100%; }
 .sheet-frame.hug > .sheet { height: auto; flex: none; }
 @media (prefers-reduced-motion: reduce) {
@@ -496,8 +499,8 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   padding: 0 8px;
   background: transparent;
 }
-.peek-locate { position: static; top: auto; right: auto; align-self: center; margin: 0 20px 0 0; flex: none; width: 40px; height: 40px; }
-.peek-locate .asset { width: 20px; height: 20px; }
+.peek-locate { position: static; top: auto; right: auto; align-self: center; margin: 0 13px 0 0; flex: none; width: 54px; height: 54px; }
+.peek-locate .asset { width: 27px; height: 27px; }
 .peek-tools { display: flex; align-items: center; justify-content: space-between; }
 .peek-photos { position: relative; margin-left: 13px; pointer-events: auto; }
 .glass-icon.peek-photos-btn { position: relative; z-index: 1; width: 54px; height: 54px; transition: transform 0.16s ease-out; }
@@ -577,9 +580,9 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   flex-direction: column;
   gap: 16px;
 }
-.peek-card .itinerary-intro { gap: 0; }
-.sheet.itinerary .trip-head h1 { line-height: 54px; }
-.peek-card .trip-head h1 { font-size: 28px; line-height: normal; letter-spacing: -1.2px; }
+.peek-card .itinerary-intro, .sheet.itinerary .itinerary-intro { gap: 4px; }
+.sheet.itinerary .itinerary-intro { padding-top: 12px; }
+.peek-card .trip-head h1, .sheet.itinerary .trip-head h1 { font-size: 24px; line-height: normal; letter-spacing: -1.2px; }
 .peek-card .head-avatars { display: flex; padding: 0; }
 .peek-card .peek-rule { margin: -0.5px 0; }
 .peek-card .peek-progress-labels, .peek-card .up-next small { line-height: 14px; }
@@ -681,7 +684,8 @@ button.glass > .asset { filter: brightness(0) invert(0.353); }
   mask-image: var(--plans-fade);
 }
 img.asset { width: auto; height: auto; max-width: none; flex: none; }
-.locate-icon { transform: translate(0.75px, -0.75px) rotate(-45deg); }
+/* Measured, not guessed: the rotated arrow's mass sits up-right of its box, so split the difference between box and mass. */
+.locate-icon { transform: translate(2px, -2px) rotate(-45deg); }
 .sheet > .trip-head,
 .sheet > .trip-dates,
 .sheet > .seg { padding-left: 20px; padding-right: 20px; }
@@ -755,10 +759,10 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   align-items: center;
   border-radius: 8px 8px 0 0;
 }
-.day small { display: block; color: #a2a8c0; font-size: 12px; font-weight: 600; }
-.day strong { display: block; color: #818896; font-size: 16px; font-weight: 600; }
-.day.on small { color: #282828; }
-.day.on strong { color: #000; }
+.day small { display: block; color: #a2a8c0; font-size: 12px; font-weight: 500; }
+.day strong { display: block; color: #818896; font-size: 16px; font-weight: 500; }
+.day.on small { color: #282828; font-weight: 700; }
+.day.on strong { color: #000; font-weight: 700; }
 .days { gap: 12px; }
 .days.many { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scroll-padding-inline: 20px; }
 .days.many::-webkit-scrollbar { display: none; }
@@ -832,6 +836,46 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .card-meta { color: #8f8f8f; font-size: 12px; font-weight: 500; }
 .card-meta em { font-style: normal; font-weight: 400; letter-spacing: -0.15px; }
 .card.now .card-meta > span { color: #2b59f0; font-weight: 700; }
+.now-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 15.7px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #f0f3ff;
+  color: #2b59f0;
+}
+.now-tag .asset { width: 19.3px; height: 5.7px; }
+/* Both tags sit on the top edge of their card (Figma 109-5968, 109-6126). */
+.now-tag.on-card { position: absolute; z-index: 1; top: -6px; }
+.now-tag i { position: relative; width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
+/* A soft beacon: the dot breathes and a ring drifts out of it, slow enough to read as live rather than as an alert. */
+.now-tag i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  animation: now-ring 2s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+}
+.now-tag i { animation: now-breathe 2s ease-in-out infinite; }
+@keyframes now-ring {
+  0% { transform: scale(1); opacity: 0.55; }
+  70%, 100% { transform: scale(3.4); opacity: 0; }
+}
+@keyframes now-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .now-tag i, .now-tag i::after { animation: none; }
+  .now-tag i::after { opacity: 0; }
+}
+.peek-card { position: relative; }
+.peek-card > .now-tag.on-card { left: 20px; background: #f1f3ff; }
+.card > .now-tag.on-card { left: 16.5px; }
 .card-title { margin: 0; font-weight: 600; font-size: 18px; line-height: 25px; letter-spacing: -0.35px; color: #000; }
 .card-title > span:not(.faces), .expense-row span { display: flex; align-items: center; gap: 4px; }
 .card-title .asset, .expense-row .asset { width: 16px; height: 16px; }
@@ -858,9 +902,11 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   margin-right: calc(var(--face) * -0.35);
   flex: none;
 }
+/* Figma's cut-outs: the next face sits 0.65 × size along and is carved out with a ring of 0.105 × size
+   (2.9px at 28px, 2.3px at 22px, 1.5px at 14px), so the gap scales with the stack instead of staying a hairline. */
 .faces > :not(:last-child) {
-  -webkit-mask: radial-gradient(circle at calc(var(--face) * 1.15) 50%, transparent calc(var(--face) * 0.5 + 1px), #000 calc(var(--face) * 0.5 + 1.5px));
-  mask: radial-gradient(circle at calc(var(--face) * 1.15) 50%, transparent calc(var(--face) * 0.5 + 1px), #000 calc(var(--face) * 0.5 + 1.5px));
+  -webkit-mask: radial-gradient(circle at calc(var(--face) * 1.15) 50%, transparent calc(var(--face) * 0.605), #000 calc(var(--face) * 0.605 + 0.5px));
+  mask: radial-gradient(circle at calc(var(--face) * 1.15) 50%, transparent calc(var(--face) * 0.605), #000 calc(var(--face) * 0.605 + 0.5px));
 }
 .faces > :last-child { margin-right: 0; }
 .faces-more {
@@ -1193,10 +1239,14 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
   border-bottom: 1px solid #e8e8e8;
 }
 .member-list li:last-child { border-bottom: 0; }
-.member-list li span { flex: 1; font-size: 16px; font-weight: 400; color: #000; white-space: nowrap; }
+.member-list li.member-row { display: block; padding: 0; }
+.member-item { display: flex; align-items: center; gap: 12px; padding: 11px 0; background: #fff; }
+/* Member rows are plain, not cards, so inset the delete action a little to sit inside the row rather than fill it. */
+.member-row .swipe-actions { padding-block: 6px; }
+.member-list li span:not(.swipe-action span) { flex: 1; font-size: 16px; font-weight: 400; color: #000; white-space: nowrap; }
 .person-tag { display: block; margin-top: 1px; font-size: 13px; font-weight: 500; color: #8f8f8f; }
 .friends-panel > .trip-dates { margin-top: -10px; }
-.member-list button { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; }
+.member-list button:not(.swipe-action) { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; }
 .face { flex: none; display: block; border-radius: 50%; object-fit: cover; }
 .member-list .face { width: 30px; height: 30px; }
 .option-ph { width: 42px; height: 42px; border-radius: 5px; background: #eee; flex: none; }
@@ -1276,17 +1326,28 @@ img.asset { width: auto; height: auto; max-width: none; flex: none; }
 .stamp-row .stamp-art { width: 64px; margin-left: -6px; --shadow: drop-shadow(0 2px 4px rgba(14, 26, 54, 0.14)); }
 .stamp-row .stamp-art:first-child { margin-left: 0; }
 .sheet.panel { padding: 0 20px 104px; }
-.sheet.panel .trip-head h1 { line-height: 54px; }
+.sheet.panel .trip-head h1 { font-size: 24px; line-height: 54px; }
 .sheet.panel > .trip-head, .sheet.panel > .trip-dates { padding-left: 0; padding-right: 0; }
 .sheet.panel .trip-dates { font-size: 14px; color: #a1a1a1; margin-bottom: 4px; }
 .sheet.panel .member-list li, .sheet.group .member-list li { padding-left: 0; }
 .passport-panel { gap: 16px; }
-.sheet.panel.passport-panel { padding-bottom: 98px; }
+.sheet.panel.passport-panel { padding-bottom: 0; }
+.passport-panel > * { flex: none; }
+.passport-panel > .pass-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: -12px -20px 0;
+  padding: 12px 20px 110px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.passport-panel > .pass-body::-webkit-scrollbar { display: none; }
 .stamps-empty { margin: 8px 0; color: #a1a1a1; font-size: 14px; }
 .pass-head { display: flex; align-items: flex-start; gap: 16px; margin-top: -8px; }
 .pass-avatar { width: 68px; height: 68px; border-radius: 50%; object-fit: cover; flex: none; box-shadow: 0 3px 10px rgba(27, 34, 64, 0.16); }
 .pass-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.pass-id h1 { margin: 0; font-family: Inter, sans-serif; font-weight: 400; font-size: 28px; letter-spacing: -1.2px; line-height: 34px; color: #0e1a36; }
+.pass-id h1 { margin: 0; font-family: Inter, sans-serif; font-weight: 400; font-size: 24px; letter-spacing: -1.2px; line-height: 34px; color: #0e1a36; }
 .pass-id p { margin: 0; display: flex; align-items: center; gap: 12px; }
 .pass-tag { background: #f1f2f5; color: #1b2240; font-size: 12px; font-weight: 700; line-height: 16px; width: 107px; padding: 4px 10px 6px; border-radius: 999px; }
 .pass-id em { font-style: normal; font-size: 13px; line-height: 18px; color: #a1a1a1; }
@@ -2105,7 +2166,8 @@ button.meta-pill:active { transform: scale(0.96); }
 .widget-map, .app-tile { position: relative; }
 .widget-map .widget-card { width: 163.67px; height: 163.67px; }
 .widget-map-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.widget-map-shot { position: absolute; left: -33px; top: -30px; width: 233px; height: 194px; max-width: none; object-fit: cover; }
+/* Figma 109:6834: 211×180, centred 0.67px right of the card's middle, 16px above its top. */
+.widget-map-shot { position: absolute; left: calc(50% + 0.67px - 105.5px); top: -16px; width: 211px; height: 180px; max-width: none; object-fit: cover; }
 .widget-map-panel {
   position: absolute;
   left: 12px;
@@ -2244,6 +2306,35 @@ button.meta-pill:active { transform: scale(0.96); }
   animation: stamp-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15);
 }
 .stamp-card.dragging { transition: none; }
+/* Laminate sheen. The pointer model (pointer / background position, card opacity) follows cards-css
+   (MIT, © kongyo2, github.com/kongyo2/cards-css). StampStage sets these on .stamp-card; registering them lets the
+   sheen glide and fade instead of jump. */
+@property --pointer-x { syntax: "<percentage>"; inherits: true; initial-value: 50%; }
+@property --pointer-y { syntax: "<percentage>"; inherits: true; initial-value: 50%; }
+@property --background-x { syntax: "<percentage>"; inherits: true; initial-value: 50%; }
+@property --background-y { syntax: "<percentage>"; inherits: true; initial-value: 50%; }
+@property --card-opacity { syntax: "<number>"; inherits: true; initial-value: 0; }
+.stamp-card {
+  transition:
+    transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
+    --pointer-x 0.12s linear,
+    --pointer-y 0.12s linear,
+    --background-x 0.12s linear,
+    --background-y 0.12s linear,
+    --card-opacity 0.45s ease;
+}
+.stamp-card.dragging { transition: --pointer-x 0.08s linear, --pointer-y 0.08s linear, --background-x 0.08s linear, --background-y 0.08s linear, --card-opacity 0.2s ease; }
+/* The coat catches the light once as the stamp lands, so it's noticed before the stamp is touched. */
+.stamp-card { animation: stamp-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15), holo-intro 1.8s cubic-bezier(0.45, 0, 0.25, 1) 0.35s backwards; }
+@keyframes holo-intro {
+  0% { --pointer-x: 10%; --pointer-y: 15%; --background-x: 40%; --background-y: 38%; --card-opacity: 0; }
+  25% { --card-opacity: 0.9; }
+  75% { --card-opacity: 0.9; }
+  100% { --pointer-x: 90%; --pointer-y: 85%; --background-x: 60%; --background-y: 62%; --card-opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stamp-card { animation: none; }
+}
 @keyframes stamp-in { from { opacity: 0; scale: 0.6; } }
 .stamp-face, .stamp-back {
   position: absolute;
@@ -2314,6 +2405,57 @@ button.meta-pill:active { transform: scale(0.96); }
   opacity: 0.07;
 }
 .stamp-body > .stamp-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* Laminate: a clear glossy coat rather than a foil. A faint sheen is always there; turning the stamp or moving the
+   pointer over it slides a soft gloss band across and brings up a highlight under the pointer.
+   Each layer is clipped to the stamp's silhouette (perforated paper plus photo window) on its own, since a shared
+   masked wrapper would isolate the blend modes. Mask positions are fractions of the leftover space, so the photo
+   window's 6.17% / 3.09% offset is written as 6.17 / (100 - 87.45) = 49.16% and 3.09 / (100 - 87.41) = 24.54%. */
+.stamp-body > .stamp-holo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-mask:
+    url(/assets/passport/stamp-frame.svg) 0 0 / 100% 100% no-repeat,
+    linear-gradient(#000, #000) 49.16% 24.54% / 87.45% 87.41% no-repeat;
+  mask:
+    url(/assets/passport/stamp-frame.svg) 0 0 / 100% 100% no-repeat,
+    linear-gradient(#000, #000) 49.16% 24.54% / 87.45% 87.41% no-repeat;
+}
+/* The gloss band: mostly white, with the barest cool/warm edge a laminate picks up at an angle. */
+.stamp-holo-shine {
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgb(214 228 255 / 0.18) 40%,
+    rgb(255 255 255 / 0.55) 47%,
+    rgb(255 255 255 / 0.2) 52%,
+    rgb(255 236 246 / 0.12) 58%,
+    transparent 68%
+  );
+  background-size: 260% 260%;
+  background-position: calc(((50% - var(--background-x)) * 4) + 50%) calc(((50% - var(--background-y)) * 2) + 50%);
+  mix-blend-mode: screen;
+  opacity: calc(0.35 + var(--card-opacity) * 0.65);
+}
+/* White paper can't get brighter, so on the frame the coat shows the other way round: a faint cool tint everywhere
+   except the gloss band and the spot under the pointer, which then read as the reflection moving across it. */
+.stamp-body > .stamp-holo-paper {
+  -webkit-mask: url(/assets/passport/stamp-frame.svg) 0 0 / 100% 100% no-repeat;
+  mask: url(/assets/passport/stamp-frame.svg) 0 0 / 100% 100% no-repeat;
+  background:
+    radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), transparent 0%, transparent 25%, rgb(120 138 178 / 0.1) 100%),
+    linear-gradient(115deg, rgb(120 138 178 / 0.16) 0%, rgb(120 138 178 / 0.1) 32%, transparent 44%, transparent 52%, rgb(150 140 175 / 0.08) 60%, rgb(120 138 178 / 0.16) 100%);
+  background-size: 100% 100%, 260% 260%;
+  background-position: center, calc(((50% - var(--background-x)) * 4) + 50%) calc(((50% - var(--background-y)) * 2) + 50%);
+  mix-blend-mode: multiply;
+  opacity: calc(0.45 + var(--card-opacity) * 0.55);
+}
+/* The highlight under the pointer, plus a slight darkening away from it that gives the coat its depth. */
+.stamp-holo-glare {
+  background: radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), rgb(255 255 255 / 0.5) 0%, rgb(255 255 255 / 0.12) 30%, rgb(14 26 54 / 0.12) 100%);
+  mix-blend-mode: soft-light;
+  opacity: calc(0.4 + var(--card-opacity) * 0.6);
+}
 .stamp-title {
   position: absolute;
   left: 50%;

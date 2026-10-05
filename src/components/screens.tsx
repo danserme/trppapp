@@ -100,9 +100,13 @@ export function TripList() {
                   <p>{trip.dates}</p>
                 </button>
                 <div className="trip-card-foot">
-                  <AvatarStack ids={trip.people.slice(0, 2)} extra={trip.extra} size={28} surface="grey" />
-                  {trip.when === "upcoming" && openable(trip.id) && (
-                    <button type="button" className="plan-btn" onClick={() => dispatch({ type: "open-trip", trip: trip.id as TripId })}>
+                  <AvatarStack ids={trip.people.length > 0 ? trip.people.slice(0, 2) : ["ari"]} extra={trip.extra} size={28} surface="grey" />
+                  {trip.when === "upcoming" && (
+                    <button
+                      type="button"
+                      className="plan-btn"
+                      onClick={() => (openable(trip.id) ? dispatch({ type: "open-trip", trip: trip.id }) : dispatch({ type: "toast", toast: "Planning opens once someone accepts the invite." }))}
+                    >
                       Plan trip
                     </button>
                   )}
@@ -363,12 +367,12 @@ export function PollComposer() {
       <div className="composer-body">
         <div className="composer-main">
           <div className="mode-seg" role="radiogroup" aria-label="How to decide">
-            <i className={voting ? "thumb" : "thumb right"} aria-hidden="true" />
-            <button type="button" role="radio" aria-checked={voting} onClick={() => setVoting(true)}>
-              <i className="icon-mask poll-icon" aria-hidden="true" /> Open poll
-            </button>
+            <i className={voting ? "thumb right" : "thumb"} aria-hidden="true" />
             <button type="button" role="radio" aria-checked={!voting} onClick={() => setVoting(false)}>
               <IconPlace /> Pick a place
+            </button>
+            <button type="button" role="radio" aria-checked={voting} onClick={() => setVoting(true)}>
+              <i className="icon-mask poll-icon" aria-hidden="true" /> Open poll
             </button>
           </div>
           <label className="question-field">

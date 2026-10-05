@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Drawer } from "vaul"
 import { MapView, type MapFocus, type MapHighlight } from "./components/MapView"
 import { HomeScreen } from "./components/HomeScreen"
@@ -19,7 +19,10 @@ import { StampGallery, StampViewer } from "./components/Passport"
 import { StatusBar, TabBar, Toast } from "./components/chrome"
 import { IconList, IconSliders } from "./components/icons"
 import { trips } from "./data"
-import { MID, OPEN, PEEK, TALL, TODAY, Provider, useStore } from "./state"
+import { MID, OPEN, PASS, PEEK, TALL, TODAY, Provider, useStore } from "./state"
+
+const SNAPS = [PEEK, MID, OPEN, TALL]
+const PASSPORT_SNAPS = [PEEK, MID, PASS, TALL]
 
 const PHONE_W = 402
 const PHONE_H = 874
@@ -41,6 +44,34 @@ function useScale() {
     return () => window.removeEventListener("resize", fit)
   }, [])
   return scale
+}
+
+// While a drag is under way vaul moves the drawer but its height stays at the last snap point, so dragging up would
+// lift the sheet's bottom edge off the screen. Watch the drawer's transform and stretch the sheet by the same amount.
+function useStretchOnDrag(content: HTMLElement | null, snapPx: number) {
+  const base = useRef(snapPx)
+  useEffect(() => {
+    base.current = snapPx
+  }, [snapPx])
+  useEffect(() => {
+    const fill = content?.querySelector<HTMLElement>(".drawer-fill")
+    if (!content || !fill) return
+    const sync = () => {
+      const dragging = content.style.transition === "none"
+      const y = new DOMMatrix(getComputedStyle(content).transform).m42
+      const lift = dragging ? Math.max(0, content.clientHeight - base.current - y) : 0
+      if (lift > 0) {
+        fill.style.setProperty("--lift", `${lift}px`)
+        fill.dataset.lifting = ""
+      } else if ("lifting" in fill.dataset) {
+        fill.style.removeProperty("--lift")
+        delete fill.dataset.lifting
+      }
+    }
+    const observer = new MutationObserver(sync)
+    observer.observe(content, { attributes: true, attributeFilter: ["style"] })
+    return () => observer.disconnect()
+  }, [content])
 }
 
 function Shell() {
@@ -75,11 +106,12 @@ function Phone() {
   const { state, dispatch, screen, setScreen } = useStore()
   const [yearsOpen, setYearsOpen] = useState(false)
   const [tripsInView, setTripsInView] = useState(0)
+  const [drawer, setDrawer] = useState<HTMLDivElement | null>(null)
   const removed = useMemo(() => ({ stops: state.removedStops, trips: state.removedTrips }), [state.removedStops, state.removedTrips])
   const showMap = state.mode === "map"
   const drawerExpanded = state.tab !== "trips" || state.snap !== PEEK
   const showChrome = showMap && state.tab === "trips" && state.snap === PEEK
-  const onPassport = showMap && state.tab === "passport" && !state.stamp
+  const onPassport = showMap && state.tab === "passport" && !state.stamp && state.snap !== TALL
   const showYears = onPassport || (showChrome && (tripsInView > 1 || state.year !== "all"))
   const fullPage =
     state.overlay === "invite" ||
@@ -93,6 +125,7 @@ function Phone() {
     state.gallery
   const showTabs = !fullPage && !(state.tab === "trips" && state.mode === "map" && state.snap !== PEEK)
   const snapPx = screen ? screen.clientHeight * state.snap : 318
+  useStretchOnDrag(drawer, snapPx)
   const focus: MapFocus =
     state.tab === "passport"
       ? state.stamp
@@ -166,6 +199,7 @@ function Phone() {
             setYearsOpen(false)
           }}
           onTripsInView={setTripsInView}
+          onAlreadyHere={() => dispatch({ type: "toast", toast: "You’re already looking at your location." })}
         />
       )}
       <StatusBar onOpenTrip={() => dispatch({ type: "open-trip", trip: "lisbon" })} />
@@ -210,7 +244,7 @@ function Phone() {
           disablePreventScroll
           autoFocus={false}
           container={screen}
-          snapPoints={[PEEK, MID, OPEN, TALL]}
+          snapPoints={state.tab === "passport" ? PASSPORT_SNAPS : SNAPS}
           snapToSequentialPoint
           activeSnapPoint={state.snap}
           setActiveSnapPoint={(snap) => {
@@ -223,9 +257,9 @@ function Phone() {
           }}
         >
           <Drawer.Portal>
-            <Drawer.Content className="trip-drawer" aria-describedby={undefined} onOpenAutoFocus={(event) => event.preventDefault()}>
+            <Drawer.Content ref={setDrawer} className="trip-drawer" aria-describedby={undefined} onOpenAutoFocus={(event) => event.preventDefault()}>
               <Drawer.Title className="sr">{state.tab === "friends" ? "Friends" : state.tab === "passport" ? "Passport" : state.trip === "lisbon" ? state.tripTitle : trips.find((trip) => trip.id === state.trip)?.title}</Drawer.Title>
-              <div className={drawerExpanded ? "drawer-fill open" : "drawer-fill"} style={{ height: snapPx }}>
+              <div className={drawerExpanded ? "drawer-fill open" : "drawer-fill"} style={{ height: `calc(${snapPx}px + var(--lift, 0px))` }}>
                 <TripDrawer />
               </div>
             </Drawer.Content>

@@ -53,6 +53,8 @@ export const PEEK = 0.36
 export const MID = 0.56
 export const OPEN = 630 / 874
 export const TALL = 796 / 874
+// The passport rests where its content ends, so the globe gets the space above it.
+export const PASS = 589 / 874
 
 type State = {
   tab: Tab
@@ -102,6 +104,7 @@ type State = {
   createdTrips: Trip[]
   removedStops: string[]
   removedTrips: string[]
+  removedMembers: Record<string, string[]>
 }
 
 const initial: State = {
@@ -152,6 +155,7 @@ const initial: State = {
   createdTrips: [],
   removedStops: [],
   removedTrips: [],
+  removedMembers: {},
 }
 
 type Action =
@@ -173,7 +177,7 @@ type Action =
   | { type: "toggle-friend"; id: string }
   | { type: "friend-query"; query: string }
   | { type: "add-members" }
-  | { type: "remove-member"; id: string }
+  | { type: "remove-member"; id: string; trip?: string }
   | { type: "vote"; optionId: string }
   | { type: "save-poll"; poll: Poll }
   | { type: "palette"; palette: Palette }
@@ -203,7 +207,7 @@ function reducer(state: State, action: Action): State {
         stamp: null,
         gallery: false,
         mode: action.tab === "trips" ? state.mode : "map",
-        snap: action.tab === "trips" ? PEEK : OPEN,
+        snap: action.tab === "trips" ? PEEK : action.tab === "passport" ? PASS : OPEN,
       }
     case "mode":
       return { ...state, mode: action.mode, tab: "trips", overlay: null }
@@ -298,8 +302,13 @@ function reducer(state: State, action: Action): State {
             : `${incoming.length} members have been added.`,
       }
     }
-    case "remove-member":
-      return { ...state, members: state.members.filter((id) => id !== action.id) }
+    case "remove-member": {
+      const trip = action.trip ?? "lisbon"
+      const name = people[action.id]?.name.split(" ")[0] ?? "Member"
+      const toast = { toast: `${name} has been removed.`, toastTone: "info" as const }
+      if (trip === "lisbon") return { ...state, ...toast, members: state.members.filter((id) => id !== action.id) }
+      return { ...state, ...toast, removedMembers: { ...state.removedMembers, [trip]: [...(state.removedMembers[trip] ?? []), action.id] } }
+    }
     case "vote": {
       const poll = state.pollByDay[state.day]
       if (!poll) return state
@@ -364,7 +373,7 @@ function reducer(state: State, action: Action): State {
         sheet: "trip",
         tripTab: "itinerary",
         toastTone: "info",
-        toast: state.pollVoting ? "New poll added." : "Added to itinerary.",
+        toast: merged.decided ? `${merged.options[0]?.name ?? "Place"} added to itinerary.` : "New poll added.",
       }
     }
     case "palette":

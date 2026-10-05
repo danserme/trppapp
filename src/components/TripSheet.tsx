@@ -17,7 +17,7 @@ export function TripDrawer() {
     )
   if (state.tab === "passport")
     return (
-      <SheetFrame hug view="passport">
+      <SheetFrame view="passport">
         <PassportPanel />
       </SheetFrame>
     )
@@ -181,10 +181,21 @@ function PhotoShortcut({ hidden = false }: { hidden?: boolean }) {
   )
 }
 
+// The live marker for whatever is happening right now: the trip in progress, the activity under way.
+export function NowTag({ className = "" }: { className?: string }) {
+  return (
+    <span className={`now-tag ${className}`.trim()} role="img" aria-label="now">
+      <i aria-hidden="true" />
+      <img className="asset" src="/assets/icons/now.svg" alt="" />
+    </span>
+  )
+}
+
 export function CurrentTripCard() {
   const { state, dispatch } = useStore()
   return (
     <button type="button" className="peek-card" onClick={() => dispatch({ type: "open-trip" })}>
+      <NowTag className="on-card" />
       <div className="itinerary-intro">
         <header className="trip-head">
           <h1>{state.tripTitle}</h1>
@@ -256,8 +267,9 @@ const pastDocs: Record<string, Doc[]> = {
 function useTripHead() {
   const { state } = useStore()
   const trip = trips.find((item) => item.id === state.trip)
+  const removed = state.removedMembers[state.trip] ?? []
   return state.trip !== "lisbon" && trip
-    ? { title: trip.title, dates: trip.dates, members: trip.people, extra: trip.extra + 2 - trip.people.length }
+    ? { title: trip.title, dates: trip.dates, members: trip.people.filter((id) => !removed.includes(id)), extra: trip.extra + 2 - trip.people.length }
     : { title: state.tripTitle, dates: tripRange(state.tripStart, state.tripEnd), members: state.members, extra: 1 }
 }
 
@@ -309,7 +321,8 @@ function TripSheetBody() {
     }
     const top = current.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
     const previous = current.previousElementSibling as HTMLElement | null
-    const peek = current.matches(".pending") ? 20 : previous ? previous.offsetHeight * 0.75 + 44 : 0
+    // The now card's tag sits on its top edge, so keep it clear of the scroller's top fade.
+    const peek = current.matches(".pending") ? 20 : previous ? previous.offsetHeight * 0.75 + 44 : current.querySelector(".now-tag") ? 26 : 0
     scroller.scrollTop = Math.max(0, top - peek)
   }, [state.day, tab, state.snap, poll?.question, focus, plans])
   const gap = pastDay ? undefined : plans.find((stop) => stop.kind === "gap")
@@ -319,7 +332,7 @@ function TripSheetBody() {
     if (done || tab === "photos") photoRef.current?.click()
     else if (tab === "expenses") dispatch({ type: "overlay", overlay: "bill" })
     else if (tab === "docs") fileRef.current?.click()
-    else dispatch({ type: "overlay", overlay: "poll", anchor: gap?.id ?? null, voting: true })
+    else dispatch({ type: "overlay", overlay: "poll", anchor: gap?.id ?? null, voting: false })
   }
 
   function sharePhoto(file: File) {
@@ -562,6 +575,7 @@ function StopCard({ stop }: { stop: Stop }) {
   }
   const card = (
     <article className={stop.tone === "now" ? "card now tappable" : "card tappable"} data-stop={stop.id === "poll-result" ? "poll" : stop.id} onClick={tap}>
+      {stop.tone === "now" && state.day === TODAY && state.trip === "lisbon" && <NowTag className="on-card" />}
       <div className="card-meta">
         <span>{stop.time}</span>
         <em>{stop.status}</em>
@@ -1044,6 +1058,7 @@ function Docs({ docs }: { docs: Doc[] }) {
 function GroupSheet() {
   const { state, dispatch } = useStore()
   const head = useTripHead()
+  const editable = !isPastTrip(state.trip)
   return (
     <div className="sheet group">
       <span className="handle" />
@@ -1056,17 +1071,27 @@ function GroupSheet() {
           {head.members.map((id) => {
             const item = person(id)
             if (!item) return null
-            return (
-              <li key={id}>
+            const row = (
+              <div className="member-item">
                 <Face id={id} />
                 <PersonName id={id} />
+              </div>
+            )
+            // Same swipe-to-delete as the itinerary's activity cards.
+            return (
+              <li key={id} className="member-row">
+                {editable ? (
+                  <SwipeRow actions={[{ label: "Delete", tone: "delete", icon: <IconTrash />, onClick: () => dispatch({ type: "remove-member", id, trip: state.trip }) }]}>{row}</SwipeRow>
+                ) : (
+                  row
+                )}
               </li>
             )
           })}
         </ul>
       </div>
       <Toolbar variant="sheet" lead={<ToolIcon label="Back" icon="back" onClick={() => dispatch({ type: "back" })} />}>
-        {!isPastTrip(state.trip) && <ToolAction label="Add members" icon="plus" onClick={() => dispatch({ type: "overlay", overlay: "invite" })} />}
+        {editable && <ToolAction label="Add members" icon="plus" onClick={() => dispatch({ type: "overlay", overlay: "invite" })} />}
       </Toolbar>
     </div>
   )
