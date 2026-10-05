@@ -16,6 +16,7 @@ import {
 } from "./components/screens"
 import { BalancesSheet, TripDrawer } from "./components/TripSheet"
 import { StampGallery, StampViewer } from "./components/Passport"
+import { Onboarding } from "./components/Onboarding"
 import { StatusBar, TabBar, Toast } from "./components/chrome"
 import { IconList, IconSliders } from "./components/icons"
 import { trips } from "./data"
@@ -167,6 +168,14 @@ function Phone() {
     return (
       <div className="screen home-screen">
         <HomeScreen />
+      </div>
+    )
+  }
+
+  if (state.onboarding) {
+    return (
+      <div className="screen launched">
+        <Onboarding onDone={() => dispatch({ type: "onboarded" })} />
       </div>
     )
   }

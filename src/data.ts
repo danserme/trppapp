@@ -738,4 +738,7 @@ function arc([x1, y1]: LngLat, [x2, y2]: LngLat): LngLat[] {
   })
 }
 
-export const passportArcs: LngLat[][] = passportStamps.slice(1).map((stamp, index) => arc(passportStamps[index].coord, stamp.coord))
+// The places drawn on the globes: Rotterdam was a day trip from the Amsterdam weekend, so it shares Amsterdam's dot.
+// It still counts as its own stamp and city in the Passport.
+export const globePlaces: Stamp[] = passportStamps.filter((stamp) => stamp.id !== "rotterdam")
+export const passportArcs: LngLat[][] = globePlaces.slice(1).map((stamp, index) => arc(globePlaces[index].coord, stamp.coord))
