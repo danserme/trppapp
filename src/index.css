@@ -2228,7 +2228,7 @@ button.meta-pill:active { transform: scale(0.96); }
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 8px 10px;
+  padding: 6px 8px 12px;
   border-radius: 16px;
 }
 /* The day's progress floats on the map in clear glass (Figma 48:17845): the 70% white fill thinned a little so the
@@ -2246,7 +2246,8 @@ button.meta-pill:active { transform: scale(0.96); }
     0 0 0 0.5px rgb(14 26 54 / 0.06),
     0 4px 12px -4px rgb(14 26 54 / 0.12);
 }
-.widget-map-panel > span:first-child { height: 18px; display: flex; justify-content: space-between; align-items: center; }
+/* By class, not position: in Safari the glass inserts its own layers at the start of the panel (glass.ts). */
+.widget-map-head { height: 18px; display: flex; justify-content: space-between; align-items: center; }
 .widget-map-panel b { color: #000; font-size: 12px; font-weight: 500; }
 .widget-map-panel em { color: #6f768b; font-size: 12px; font-style: normal; font-weight: 400; }
 .widget-map-panel .segments { gap: 3px; }

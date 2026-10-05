@@ -77,7 +77,7 @@ export function HomeScreen() {
             <img className="widget-map-bg" src="/assets/home/widget-map.png" alt="" />
             <img className="widget-map-shot" src="/assets/home/widget-shot.png" alt="" />
             <span className="widget-map-panel glass">
-              <span>
+              <span className="widget-map-head">
                 <b>Day 2/3</b>
                 <em>3 stops left</em>
               </span>
