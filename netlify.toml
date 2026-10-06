@@ -6,3 +6,11 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Keep every page and file out of search results, on every domain the site is served on (including
+# tripup.polinabobrova.com). No robots.txt Disallow on purpose: crawlers have to be able to fetch a page to see that it
+# is noindex, which is what gets already-indexed pages dropped.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
